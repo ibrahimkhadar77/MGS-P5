@@ -505,7 +505,7 @@ function renderChips(){
   if(FILTERS.quick) chips.push([FILTERS.quick==='unsafe'?'Quick: Unsafe only':'Quick: Positive only', ()=>{FILTERS.quick=null; renderAll();}]);
   if(FILTERS._sev) chips.push(['Severity: '+(FILTERS._sev==='NA'?'N/A':'Sev '+FILTERS._sev), ()=>{FILTERS._sev=null; renderAll();}]);
   const row = document.getElementById('chipRow');
-  row.innerHTML = chips.map((c,i)=>`<span class="chip-x">${c[0]}<button data-i="${i}">âœ•</button></span>`).join('');
+  row.innerHTML = chips.map((c,i)=>`<span class="chip-x">${c[0]}<button data-i="${i}">X</button></span>`).join('');
   Array.from(row.querySelectorAll('button')).forEach((btn,i)=>btn.addEventListener('click', chips[i][1]));
 }
 
