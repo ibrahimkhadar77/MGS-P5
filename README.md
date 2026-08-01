@@ -1,253 +1,260 @@
-# HSE Observation Dashboard Setup Guide
+# HSE Observation Dashboard
 
-This document explains how this dashboard was built, what it needs to run, how the data source works, how to update or sync records, and how to create a similar dashboard.
+This project is a browser-based HSE observation dashboard for reviewing field safety reports from a Google Sheet. It is designed as a static front end, with live data loaded at runtime from Google services.
 
-It is written for users, so it focuses on practical steps instead of code details.
+The dashboard is built with plain HTML, CSS, and JavaScript. There is no build step and no framework dependency in the repo itself.
 
-## 1) What This Dashboard Does
+## What the dashboard includes
 
-This is a browser-based HSE observation dashboard. It shows safety observations in a visual way so users can quickly review:
+- KPI cards for total reports, safe practices, unsafe acts, and closure rate
+- Filter controls for observer, designation, status, and free-text search
+- Overview reports for reporting trend and observation categories
+- Team reports for designation mix and top reporters
+- Management insight reports for severity, location hotspots, and weekly cadence
+- Trend reports for monthly comparison and aging open items
+- A paged observation log with expandable report details
+- Modal views for full report details, evidence preview, and maximized panels
 
-- Total observations and key KPIs
-- Reporting trends over time
-- Categories, severity, and hotspots
-- People and designations that submitted reports
-- Open items and aging items
-- A full observation log with evidence links
+## Project structure
 
-The dashboard is a single-page web app built with plain HTML, CSS, and JavaScript.
+- [index.html](index.html) contains the main page layout, tabs, filters, chart containers, table, and modal shells.
+- [assets/styles.css](assets/styles.css) contains the full visual design for the dashboard.
+- [assets/app.js](assets/app.js) contains configuration, data loading, normalization, filtering, chart rendering, log rendering, and modal behavior.
+- [bqhse/index.html](bqhse/index.html) is a separate standalone HTML variant in the same workspace.
 
-## 2) What Files Make It Work
+## Technology used
 
-- [index.html](index.html) is the page layout. It contains the visible sections, tabs, filter controls, chart areas, log table, and pop-up windows.
-- [assets/styles.css](assets/styles.css) contains the visual styling.
-- [assets/app.js](assets/app.js) contains all dashboard behavior: loading data, cleaning data, filtering, charting, table rendering, pop-ups, and automatic refresh.
-- [Safety Observation Report (Responses).xlsx](Safety%20Observation%20Report%20%28Responses%29.xlsx) is the workbook in the folder. It is useful as the original source reference or for preparation of data.
+- HTML
+- CSS
+- JavaScript
+- [Chart.js](https://www.chartjs.org/) for charts
+- [Papa Parse](https://www.papaparse.com/) for CSV parsing
+- Google Sheets as the source spreadsheet
+- Google Apps Script as the primary JSON endpoint
+- Google Visualization JSONP as a fallback option for sheet reads
+- Google Fonts for typography
 
-## 3) Technology Used
+## Current runtime configuration
 
-The dashboard uses the following tools and services:
+The live source configuration is defined near the top of [assets/app.js](assets/app.js).
 
-- HTML for structure
-- CSS for design
-- JavaScript for logic
-- PapaParse for reading CSV data
-- Chart.js for charts and graphs
-- Google Sheets as the live data source
-- Google Apps Script as the primary live data endpoint
-- Google Drive links for evidence previews
+### Active settings in the current code
 
-The page also loads Google Fonts from the internet for its appearance.
+- `DATA_SOURCE_MODE` is set to `apps-script`
+- `REFRESH_MS` is set to `300 * 60 * 1000`, which is 300 minutes or 5 hours
+- `LOG_PAGE_SIZE` is set to `25`
+- The code keeps both a Google Sheet export URL and a Google Apps Script URL available
 
-## 4) Prerequisites
+### Source modes supported by the dashboard
 
-Before using or setting up this dashboard, make sure you have:
+- `apps-script`: load JSON from the Apps Script web app
+- `direct-sheet`: fetch the Google Sheet CSV export directly
+- `auto`: try Apps Script first, then fall back to direct sheet access
 
-- A modern browser such as Microsoft Edge, Google Chrome, or Firefox
-- Internet access for the chart library, CSV parser, fonts, and Google services
-- Access to the Google Sheet or Apps Script deployment that holds the observation data
-- Permission to read the source spreadsheet if the data is private
-- A static web folder containing [index.html](index.html), [assets/styles.css](assets/styles.css), and [assets/app.js](assets/app.js)
+### Important hosting note
 
-No software installation or build step is required for the dashboard itself.
+If the page is opened with `file://`, direct CSV fetch from Google Sheets is blocked by browser CORS rules. The code accounts for this by using a Google Visualization JSONP path when needed.
 
-## 5) How The Dashboard Is Built
+## How data flows through the app
 
-The page is built in layers:
+The control flow in [assets/app.js](assets/app.js) is straightforward:
 
-1. [index.html](index.html) creates the page shell.
-2. [assets/styles.css](assets/styles.css) styles the dashboard.
-3. [assets/app.js](assets/app.js) loads the data and turns it into filters, KPIs, charts, and a log table.
-4. The script reads the source data, converts it into a common record format, and then renders the results.
+1. The script reads rows from Apps Script, direct sheet CSV, or Google Visualization.
+2. It normalizes incoming rows into one common record shape.
+3. It stores the normalized list in memory.
+4. Filters are applied on the client side.
+5. KPI cards, charts, hotspot lists, aging lists, and the log table are re-rendered from the filtered rows.
 
-The dashboard does not use a complex framework. That makes it easier to move, copy, or maintain.
+This design keeps the front end simple and makes the spreadsheet the operational source of truth.
 
-## 6) Live Data Configuration
+## Normalized fields expected by the dashboard
 
-The live data connection is controlled inside [assets/app.js](assets/app.js).
+The parser is flexible about header names, but it expects each row to map into these business fields:
 
-### Current configuration values
-
-- SHEET_ID: the Google Sheet identifier used for direct sheet export and Google visualization fallback.
-- CSV_URL: direct CSV export URL built from the sheet ID.
-- APPS_SCRIPT_URL: the Google Apps Script URL that returns data as JSON.
-- DATA_SOURCE_MODE: selects the active source path.
-- REFRESH_MS: automatic refresh interval, currently set to 5 minutes.
-- PALETTE: the fixed chart color set.
-- LOG_PAGE_SIZE: number of log rows shown per page in the table.
-
-### Data source modes
-
-- apps-script: uses the Apps Script endpoint first.
-- direct-sheet: reads the Google Sheet CSV export directly.
-- auto: tries Apps Script first, then falls back to the direct sheet export.
-
-### Current active mode
-
-The dashboard is currently configured to use direct-sheet mode.
-
-When the dashboard is opened directly from a local file, it uses the Google Visualization fallback path automatically to avoid browser CORS restrictions on direct CSV fetch.
-
-If Apps Script cannot be reached, the error screen tells the user to check:
-
-- DATA_SOURCE_MODE
-- Apps Script deployment access
-- Google Sheet sharing permissions
-- The sheet ID
-
-## 7) How Data Is Read
-
-The JavaScript file has three loading paths:
-
-1. Apps Script JSON load
-2. Direct CSV export from Google Sheet
-3. Google Visualization fallback if the CSV export is blocked
-
-After loading, the script converts the incoming data into one standard record shape. This keeps the dashboard stable even if the source column names vary slightly.
-
-### Important parsing rule
-
-Each record must have a location. If a row has no location, the dashboard skips it.
-
-## 8) Required Data Fields
-
-The dashboard expects the source sheet to contain these business fields:
-
-- Date and time of observation
-- Location of observation
+- Date and time of observation, or timestamp
+- Location of observation, or location
 - Observer name
 - Type of observation
 - What was specifically observed
-- Category
-- Immediate action taken
-- Whether it was corrected on the spot
+- Category of unsafe observation
 - Severity potential
-- Photo or evidence or closeout link
+- Immediate action
+- Corrected on the spot
+- Photo or evidence or closeout field containing one or more links
 - Responsible person
 - Corrective action taken
 - Observer designation
 - Status
 
-The script is flexible with header names. For example, it can accept both:
+Rows without a location are dropped during parsing.
 
-- Date and Time of Observation
-- Timestamp
+### Practical data rules
 
-It also accepts slightly different versions of the location and observer fields.
+- Keep severity values numeric, ideally `1` to `5`
+- Use consistent status values such as `Open` and `Closed`
+- Keep one observation per row
+- Put evidence URLs in the evidence field as full `http` or `https` links
+- Keep column names reasonably close to the business labels above so the flexible matching continues to work
 
-### Recommended data quality rules
+## How evidence works
 
-- Keep severity as a number from 1 to 5
-- Keep status values readable, such as Open or Closed
-- Keep evidence as one or more valid links
-- Use one row per observation
-- Keep location filled in for every record
+The dashboard extracts URLs from the evidence field and treats them as attachments. If a link looks like an image URL or a Google Drive file URL, it can be previewed in the evidence modal. Otherwise, the UI shows a button that opens the original link.
 
-## 9) How To Update or Sync Data
+## How to run the dashboard
 
-This dashboard is designed so users can update it by changing the source spreadsheet.
+Because this is a static site, setup is minimal:
 
-### To add new observations
+1. Keep the existing file structure intact.
+2. Make sure the configured Google Sheet and Apps Script deployment are accessible.
+3. Open [index.html](index.html) in a browser.
 
-1. Open the source spreadsheet.
-2. Add a new row for each new observation.
-3. Fill in the required fields.
+For the most reliable behavior, host the folder through a local web server or static hosting platform instead of opening it directly as a local file.
+
+## How to update the data
+
+The normal operating model is to update the source spreadsheet rather than editing the dashboard code.
+
+### Add new observations
+
+1. Open the source Google Sheet.
+2. Add one row per new observation.
+3. Fill in the main observation fields.
 4. Save the sheet.
-5. Wait for the dashboard to refresh automatically, or reload the page manually.
+5. Reload the dashboard or wait for the scheduled refresh.
 
-### To correct or update existing observations
+### Correct existing observations
 
-1. Find the existing row in the source spreadsheet.
-2. Edit the values that need correction.
-3. Save the spreadsheet.
-4. Wait for the next refresh or reload the dashboard.
+1. Find the row in the source sheet.
+2. Update the required values.
+3. Save the sheet.
+4. Reload the dashboard if you need to see the change immediately.
 
-### Automatic sync behavior
+## How to adapt this dashboard for another project
 
-The dashboard reloads live data every 5 minutes.
+If you want to reuse the dashboard for a different project or department:
 
-That means if the source data changes, the dashboard will pick up the change without a code update.
+1. Copy the folder structure.
+2. Replace the Google Sheet ID in [assets/app.js](assets/app.js).
+3. Replace the Apps Script deployment URL in [assets/app.js](assets/app.js).
+4. Set the correct `DATA_SOURCE_MODE`.
+5. Adjust branding text in [index.html](index.html).
+6. Keep your source columns compatible with the current parser, or extend the parser in [assets/app.js](assets/app.js).
 
-## 10) How To Set It Up From Scratch
+## AI prompt used to create a similar dashboard
 
-If you want to create a similar dashboard, use this order:
+If you want to generate a dashboard like this with an AI assistant, use a prompt that is specific about both the UI and the data contract. A good prompt for this project would be:
 
-1. Prepare your spreadsheet with one row per observation.
-2. Make sure the spreadsheet includes the required fields listed above.
-3. Put the dashboard files in a folder with the same structure.
-4. Update SHEET_ID in [assets/app.js](assets/app.js) to the new Google Sheet ID.
-5. Update APPS_SCRIPT_URL in [assets/app.js](assets/app.js) if you are using a different Apps Script deployment.
-6. Choose the correct DATA_SOURCE_MODE.
-7. Open [index.html](index.html) in a browser through a local web server or hosted site.
+```text
+Build a browser-based HSE Observation Dashboard using plain HTML, CSS, and vanilla JavaScript.
 
-## 11) How The Data Load Fallback Works
+Requirements:
+- No framework and no build step
+- Use Chart.js for charts and Papa Parse for CSV parsing
+- Load live data from Google Sheets using either:
+	1. a Google Apps Script web app that returns JSON, or
+	2. a direct Google Sheet CSV export URL
+- Add a fallback path for environments where direct CSV fetch is blocked
+- Normalize incoming records so slightly different column names still work
+- Support fields such as date, location, observer, designation, observation type, category, severity, immediate action, corrected on the spot, responsible person, corrective action, status, and evidence links
 
-The dashboard has a safe loading order:
+UI requirements:
+- A professional HSE dashboard look and feel
+- KPI cards for total reports, safe practices, unsafe acts, and closure rate
+- Filters for observer, designation, status, and text search
+- Tabs for overview, team, insights, trends, and log
+- Charts for reporting trend, categories, designation, severity, weekly cadence, and monthly comparison
+- Lists for hotspots, top reporters, and open-item aging
+- A paginated log table with expandable row details
+- Modal windows for report detail, evidence preview, and maximized chart panels
 
-1. If DATA_SOURCE_MODE is apps-script, it loads from the Apps Script endpoint.
-2. If DATA_SOURCE_MODE is direct-sheet, it loads the CSV export.
-3. If DATA_SOURCE_MODE is auto, it tries Apps Script first and then falls back to the direct sheet.
+Behavior requirements:
+- Filter charts and lists interactively
+- Parse multiple evidence URLs from one field
+- Preview image and Google Drive evidence when possible
+- Refresh the live data on a timer
+- Keep the configuration at the top of the JavaScript file
+```
 
-If loading fails and there are no records already in memory, the dashboard shows a banner message instead of breaking the page.
+### Why this prompt works
 
-## 12) What Users Can Do In The Dashboard
+- It defines the technology stack clearly
+- It defines the expected data source options
+- It names the UI modules that must exist
+- It forces the generator to think about data normalization instead of assuming fixed headers
+- It keeps the result compatible with a static HTML deployment model
 
-The dashboard supports these user actions:
+## Google Apps Script sample code
 
-- Filter by observer name
-- Filter by designation
-- Filter by open or closed status
-- Search across the observation text
-- Click charts to filter the results
-- Open a row to see the full report details
-- Open evidence links or evidence previews
-- Switch between overview, team, insights, trends, and log views
+The dashboard expects the Apps Script endpoint to return a JSON array of row objects, where the keys are the spreadsheet headers. The parser in [assets/app.js](assets/app.js) then maps those keys using partial name matching.
 
-## 13) Evidence Link Handling
+This sample Apps Script matches that expectation:
 
-The dashboard can display evidence in two ways:
+```javascript
+function doGet() {
+	var spreadsheetId = 'YOUR_SHEET_ID';
+	var sheetName = 'Form Responses 1';
+	var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
 
-- As clickable links
-- As preview images when the evidence link points to an image or a Google Drive file that can be previewed
+	if (!sheet) {
+		return ContentService
+			.createTextOutput(JSON.stringify({ error: 'Sheet not found' }))
+			.setMimeType(ContentService.MimeType.JSON);
+	}
 
-If the evidence is not an image, the dashboard shows an open link instead.
+	var values = sheet.getDataRange().getValues();
+	if (!values || values.length < 2) {
+		return ContentService
+			.createTextOutput(JSON.stringify([]))
+			.setMimeType(ContentService.MimeType.JSON);
+	}
 
-## 14) If You Need To Build a Similar Dashboard
+	var headers = values[0];
+	var rows = values.slice(1).map(function(row) {
+		var item = {};
+		headers.forEach(function(header, index) {
+			item[String(header).trim()] = row[index];
+		});
+		return item;
+	});
 
-Use the same pattern if you want another dashboard for another project:
+	return ContentService
+		.createTextOutput(JSON.stringify(rows))
+		.setMimeType(ContentService.MimeType.JSON);
+}
+```
 
-- Keep the page single-file friendly
-- Use one script to normalize the data
-- Keep the data source outside the page content
-- Use charts only after the data is standardized
-- Keep the source configuration in a few top constants
-- Auto-refresh on a schedule instead of manual updates only
+### Deployment notes for Apps Script
 
-### Suggested reusable AI prompt
+1. Create a standalone Apps Script project or attach one to the spreadsheet.
+2. Paste the script above and replace the sheet ID and sheet name.
+3. Deploy it as a web app.
+4. Give the deployment read access appropriate for your audience.
+5. Copy the deployment URL into `APPS_SCRIPT_URL` in [assets/app.js](assets/app.js).
 
-You can give the following prompt to an AI assistant if you want it to generate a similar dashboard:
+### Important format note
 
-Build a browser-based HSE observation dashboard using plain HTML, CSS, and JavaScript. Use PapaParse to read CSV data and Chart.js for charts. The dashboard must load live data from a Google Sheet through either a Google Apps Script JSON endpoint or a direct CSV export. Include a filter bar, KPI cards, trend chart, category chart, designation chart, severity chart, hotspot list, aging list, and a paged observation log table. Add modal pop-ups for full report details and evidence preview. Keep the design clean and professional, use Google Fonts, support automatic refresh every 5 minutes, and make the source configuration easy to change from a few top constants in the JavaScript file. The data should be normalized into a common record shape so the dashboard can accept slightly different source column names.
+The front end currently expects the response body to be a JSON array. If you wrap the rows in an object like `{ data: [...] }`, the current parser will not use it unless you also update [assets/app.js](assets/app.js).
 
-## 15) Troubleshooting
+## Troubleshooting
 
-If the dashboard is not showing data, check the following:
+If the dashboard loads without data, check these first:
 
 - The Google Sheet ID is correct
 - The Apps Script URL is correct
-- The source sheet is shared or deployed correctly
-- The browser has internet access
-- The data rows include locations
-- Severity values are numeric if you want severity charts to work as expected
+- The Apps Script deployment is published and readable
+- The spreadsheet is accessible to the Apps Script and intended viewers
+- The source sheet contains rows with non-empty location values
+- Evidence links are valid URLs
+- Your status and severity values are consistent enough for filtering and charts
 
-If the page loads but shows a banner about live data being unavailable, the most likely issue is access to the sheet or Apps Script deployment.
+If `direct-sheet` mode fails while opening the page locally, that is expected browser behavior. Use HTTP hosting or switch to the Apps Script path.
 
-If the log table is missing rows, the source data may have blank locations, because those rows are skipped.
+## Maintenance guidance
 
-## 16) Best Practice For Ongoing Maintenance
-
-- Keep the source spreadsheet column names consistent
-- Avoid changing the sheet structure unless you also update the parser rules in [assets/app.js](assets/app.js)
+- Keep spreadsheet column names stable
+- Treat the sheet as the source of truth for operational updates
+- Update the parser only when the incoming sheet structure changes materially
+- Keep configuration constants grouped at the top of [assets/app.js](assets/app.js)
 - Test the dashboard after changing the sheet or Apps Script endpoint
 - Keep a backup copy of the spreadsheet before making major edits
 
