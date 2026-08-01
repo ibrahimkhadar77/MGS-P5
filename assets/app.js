@@ -2,8 +2,8 @@
 /* ============================================================
    CONFIG
    ============================================================ */
-const SHEET_ID = "1zrhLerx15lT8xp55OzhXA5M5k7eDd9aW"; // local test sheet
-// const SHEET_ID = "1PHBmq5O0yvU87yrlBbJ-inuWTGJMLNYgHnfZ0IXBS7I"; // live sheet
+// const SHEET_ID = "1zrhLerx15lT8xp55OzhXA5M5k7eDd9aW"; // local test sheet
+const SHEET_ID = "1PHBmq5O0yvU87yrlBbJ-inuWTGJMLNYgHnfZ0IXBS7I"; // live sheet
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzoIp8TjW-1Ep8OqwPYDejn6Nc5mrB9pL-kM9F3jInPXRoYTV0aqOJ6ZZArYOA4WCPNg/exec";
 const DATA_SOURCE_MODE = "direct-sheet"; // apps-script | direct-sheet | auto
