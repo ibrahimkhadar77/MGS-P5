@@ -78,13 +78,15 @@ The live data connection is controlled inside [assets/app.js](assets/app.js).
 
 ### Data source modes
 
-- apps-script: uses the Apps Script endpoint first. This is the current active mode.
+- apps-script: uses the Apps Script endpoint first.
 - direct-sheet: reads the Google Sheet CSV export directly.
 - auto: tries Apps Script first, then falls back to the direct sheet export.
 
 ### Current active mode
 
-The dashboard is currently configured to use apps-script mode.
+The dashboard is currently configured to use direct-sheet mode.
+
+When the dashboard is opened directly from a local file, it uses the Google Visualization fallback path automatically to avoid browser CORS restrictions on direct CSV fetch.
 
 If Apps Script cannot be reached, the error screen tells the user to check:
 

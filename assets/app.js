@@ -5,7 +5,7 @@
 const SHEET_ID = "1zrhLerx15lT8xp55OzhXA5M5k7eDd9aW";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzoIp8TjW-1Ep8OqwPYDejn6Nc5mrB9pL-kM9F3jInPXRoYTV0aqOJ6ZZArYOA4WCPNg/exec";
-const DATA_SOURCE_MODE = "apps-script"; // apps-script | direct-sheet | auto
+const DATA_SOURCE_MODE = "direct-sheet"; // apps-script | direct-sheet | auto
 const REFRESH_MS = 300 * 60 * 1000;
 
 const PALETTE = ['#1E8E5A','#2F6FE0','#A98A1E','#1F3A5F','#6C4FD1','#D64545','#1E9E96','#8A8F98','#C9862C','#4B6F44'];
@@ -440,6 +440,14 @@ async function loadRowsFromAppsScript(){
 }
 
 async function loadRowsFromDirectSheet(){
+  // Opening index.html directly from file:// gives origin "null" and CSV fetch is blocked by CORS.
+  // In that case, use GViz JSONP path immediately to avoid noisy console fetch errors.
+  if(window.location.protocol === 'file:' || window.location.origin === 'null'){
+    const rows = await loadRowsFromGvizJsonp();
+    if(!rows.length) throw new Error('No rows parsed from GViz');
+    return rows;
+  }
+
   try{
     const res = await fetch(CSV_URL, {cache:'no-store'});
     if(!res.ok) throw new Error('HTTP ' + res.status);
