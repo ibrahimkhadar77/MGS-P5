@@ -2,7 +2,8 @@
 /* ============================================================
    CONFIG
    ============================================================ */
-const SHEET_ID = "1zrhLerx15lT8xp55OzhXA5M5k7eDd9aW";
+const SHEET_ID = "1zrhLerx15lT8xp55OzhXA5M5k7eDd9aW"; // local test sheet
+// const SHEET_ID = "1PHBmq5O0yvU87yrlBbJ-inuWTGJMLNYgHnfZ0IXBS7I"; // live sheet
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzoIp8TjW-1Ep8OqwPYDejn6Nc5mrB9pL-kM9F3jInPXRoYTV0aqOJ6ZZArYOA4WCPNg/exec";
 const DATA_SOURCE_MODE = "direct-sheet"; // apps-script | direct-sheet | auto
@@ -440,12 +441,8 @@ async function loadRowsFromAppsScript(){
 }
 
 async function loadRowsFromDirectSheet(){
-  // Opening index.html directly from file:// gives origin "null" and CSV fetch is blocked by CORS.
-  // In that case, use GViz JSONP path immediately to avoid noisy console fetch errors.
   if(window.location.protocol === 'file:' || window.location.origin === 'null'){
-    const rows = await loadRowsFromGvizJsonp();
-    if(!rows.length) throw new Error('No rows parsed from GViz');
-    return rows;
+    throw new Error('direct-sheet mode requires HTTP(S) hosting. Opening index.html via file:// is blocked by browser CORS for Google CSV export.');
   }
 
   try{
@@ -457,9 +454,8 @@ async function loadRowsFromDirectSheet(){
     if(!rows.length) throw new Error('No rows parsed');
     return rows;
   }catch(err){
-    const rows = await loadRowsFromGvizJsonp();
-    if(!rows.length) throw new Error('No rows parsed from GViz');
-    return rows;
+    const message = err && err.message ? err.message : String(err);
+    throw new Error(`direct-sheet load failed: ${message}`);
   }
 }
 
@@ -1012,21 +1008,27 @@ async function loadData(){
     }else if(DATA_SOURCE_MODE === 'direct-sheet'){
       const rows = await loadRowsFromDirectSheet();
       applyLoadedRows(rows, 'Source: Google Sheet');
-    }else{
+    }else if(DATA_SOURCE_MODE === 'auto'){
       try{
         const rows = await loadRowsFromAppsScript();
-        applyLoadedRows(rows, 'Source: Apps Script');
-      }catch(_appsErr){
-        const rows = await loadRowsFromDirectSheet();
-        applyLoadedRows(rows, 'Source: Google Sheet (fallback)');
+        applyLoadedRows(rows, 'Source: Apps Script (auto)');
+      }catch(appsErr){
+        try{
+          const rows = await loadRowsFromDirectSheet();
+          applyLoadedRows(rows, 'Source: Google Sheet (auto fallback)');
+        }catch(sheetErr){
+          throw new Error(`auto mode failed: Apps Script error: ${appsErr.message}; Direct Sheet error: ${sheetErr.message}`);
+        }
       }
+    }else{
+      throw new Error(`Unsupported DATA_SOURCE_MODE: ${DATA_SOURCE_MODE}. Use "apps-script", "direct-sheet", or "auto".`);
     }
   }catch(err){
     if(!ALL_ROWS.length) ALL_ROWS = [];
     document.getElementById('sourceNote').textContent = 'Source unavailable';
     populateDropdowns(); syncDropdowns(); renderAll();
     setSync(true, 'Live data unavailable');
-    showBanner(`<b>Could not load live data</b> (${err.message}). Check DATA_SOURCE_MODE, Apps Script deployment access, and Google Sheet sharing for Sheet ID ${SHEET_ID}.`);
+    showBanner(`<b>Could not load configured source</b> (${err.message}). Current mode: <b>${DATA_SOURCE_MODE}</b>. Check only this mode configuration for Sheet ID ${SHEET_ID}.`);
   }
   document.getElementById('countNote').textContent = ALL_ROWS.length + ' total observations loaded';
 }
