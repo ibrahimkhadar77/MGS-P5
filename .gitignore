@@ -1,0 +1,9 @@
+# Ignore Excel files
+*.xlsx
+*.xls
+*.xlsm
+
+# (Optional) Keep this if you want to ignore temporary Excel files
+~$*.xlsx
+~$*.xls
+~$*.xlsm
