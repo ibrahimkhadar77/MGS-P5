@@ -588,7 +588,7 @@ function renderCategoryDonut(rows){
   const labels = sorted.map(s=>s[0]);
   const data = sorted.map(s=>s[1]);
   const colors = labels.map((l,i)=> PALETTE[i % PALETTE.length]);
-  drawDoughnut('catDonut', labels, data, colors, (label)=>{ FILTERS.category = FILTERS.category===label?null:label; renderAll(); });
+  drawDoughnut('catDonut', labels, data, colors, (label)=>{ selectCategory(label); });
   document.getElementById('catLegend').innerHTML = labels.map((l,i)=>`
     <div class="leg-row ${FILTERS.category===l?'active':''}" data-l="${i}">
       <span class="leg-dot" style="background:${colors[i]}"></span>
@@ -596,8 +596,16 @@ function renderCategoryDonut(rows){
       <span class="leg-count">${data[i]}</span>
     </div>`).join('');
   Array.from(document.querySelectorAll('#catLegend .leg-row')).forEach((el,i)=>{
-    el.addEventListener('click', ()=>{ FILTERS.category = FILTERS.category===labels[i]?null:labels[i]; renderAll(); });
+    el.addEventListener('click', ()=>{ selectCategory(labels[i]); });
   });
+}
+
+function selectCategory(label){
+  FILTERS.category = FILTERS.category===label ? null : label;
+  renderAll();
+  if(FILTERS.category){
+    document.querySelector('.tab-btn[data-tab="log"]')?.click();
+  }
 }
 
 function renderDesignation(rows){
