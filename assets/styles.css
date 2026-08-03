@@ -375,11 +375,12 @@ tr.detail-row td{background:var(--paper); padding:12px 16px; border-bottom:1px s
 footer{margin-top:6px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-faint);}
 
 @media (max-width:980px){
-  .kpis{grid-template-columns:repeat(2,1fr);}
-  .t-grid2, .t-grid3{grid-template-columns:1fr;}
+  .kpis{grid-template-columns:repeat(auto-fit, minmax(150px,1fr));}
+  .t-grid2, .t-grid3{grid-template-columns:1fr; height:auto;}
+  .t-panel{height:auto; min-height:320px;}
   .tab-panels{height:auto;}
   .tab-panels.log-view{height:auto; min-height:0;}
-  .tab-content{position:relative; display:none;}
+  .tab-content{position:relative; display:none; height:auto;}
   .tab-content.active{display:flex;}
   .tab-content[data-tab="log"].active{
     height:min(72vh, 760px);
@@ -390,5 +391,47 @@ footer{margin-top:6px; display:flex; justify-content:space-between; flex-wrap:wr
     min-height:0;
     flex:1;
   }
+  /* Tab labels don't all fit on a narrow screen -- let the row scroll
+     horizontally (swipe) instead of squeezing or overflowing the page. */
+  .tabs{overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; scrollbar-width:thin;}
+  .tab-btn{white-space:nowrap; flex-shrink:0;}
+}
+
+@media (max-width:600px){
+  .wrap{padding:12px 10px 20px;}
+  .hero{padding:10px 12px;}
+  .hero h1{font-size:19px;}
+  .hero-company{font-size:10px;}
+  .hero-kicker{font-size:9.5px;}
+
+  .filter-bar{padding:10px 12px; gap:10px;}
+  .f-field, .f-field.grow{min-width:100%; width:100%;}
+
+  .kpis{grid-template-columns:repeat(2,1fr); gap:8px;}
+  .kpi{padding:9px 10px;}
+  .kpi .num{font-size:19px;}
+  .kpi .cap{font-size:10px;}
+
+  .tab-btn{padding:9px 12px; font-size:11.5px;}
+  .t-panel{padding:10px 12px; min-height:280px;}
+
+  /* Donut chart + legend side-by-side is too tight on a phone -- stack them. */
+  .donut-row{flex-direction:column;}
+  .donut-box{width:100%; max-height:160px;}
+  .legend-list{max-height:200px;}
+
+  /* The log table has 6 columns and won't compress to phone width without
+     becoming unreadable -- let it scroll horizontally inside its own box
+     instead of squashing text or breaking the page layout. */
+  .log-scroll{overflow-x:auto;}
+  table{min-width:640px;}
+
+  .modal-card{padding:14px;}
+  .detail-grid, .modal-grid{grid-template-columns:1fr;}
+
+  /* Bump up small tap targets closer to a comfortable touch size. */
+  .expand-btn, .maximize-btn{width:30px; height:30px;}
+  .panel-maximize-btn{width:34px; height:34px;}
+  .modal-close{width:40px; height:40px;}
 }
 
