@@ -97,6 +97,7 @@ function normalizeDesignation(raw){
 // rather than guessed into one bucket.
 const CATEGORY_ALIASES = {
   'vehicle/forklift operation': 'Vehicle/Equipment Operation',
+  'heat stress': 'Heat Stress',
 };
 function normalizeCategoryString(raw){
   return (raw||'').split(',').map(c=>c.trim()).filter(Boolean).map(c=>{
@@ -104,6 +105,33 @@ function normalizeCategoryString(raw){
     return CATEGORY_ALIASES[key] || c;
   }).join(', ');
 }
+// The Category question offers a fixed checklist plus a free-text "Other" field.
+// Recent submissions have used "Other" heavily for things that aren't on the list --
+// some are recurring real hazards worth recognizing (Heat Stress shows up often enough
+// to treat as its own category), most are one-off phrasing that would otherwise clutter
+// the chart with a dozen single-count slices. Anything not in this recognized set gets
+// folded into a combined "Other" slice for the Categories chart specifically -- the full,
+// unfolded text is still preserved on each row (tags in the log, search) and nothing here
+// changes what's actually stored, only how the chart groups it for readability.
+const KNOWN_CATEGORIES = new Set([
+  'personal protective equipment (ppe) violation/lack of',
+  'housekeeping/clutter',
+  'working at height/fall protection',
+  'tools/equipment defects or misuse',
+  'manual handling/lifting',
+  'electrical hazards/lockout tagout (loto)',
+  'vehicle/equipment operation',
+  'chemical/material handling',
+  'procedure violation',
+  'fire safety/egress issues',
+  'environmental',
+  'training',
+  'barrication & signages',
+  'procedure violation/lack of training', // legacy pre-split label, see CATEGORY_ALIASES note
+  'heat stress',
+]);
+const CATEGORY_OTHER_LABEL = 'Other (not on category list)';
+function isKnownCategory(c){ return KNOWN_CATEGORIES.has((c||'').trim().toLowerCase()); }
 function natureOf(type){
   const t=(type||'').toLowerCase();
   if(t.includes('positive')) return 'positive';
@@ -562,7 +590,11 @@ function applyLoadedRows(rows, sourceLabel){
 /* ============================================================
    FILTERING
    ============================================================ */
-function rowMatchesCategory(r, cat){ return (r.category||'').split(',').map(s=>s.trim()).includes(cat); }
+function rowMatchesCategory(r, cat){
+  const tags = (r.category||'').split(',').map(s=>s.trim()).filter(Boolean);
+  if(cat === CATEGORY_OTHER_LABEL) return tags.some(t=>!isKnownCategory(t));
+  return tags.includes(cat);
+}
 function getFilteredRows(){
   return ALL_ROWS.filter(r=>{
     if(FILTERS.observer!=='All' && r.observer!==FILTERS.observer) return false;
@@ -722,7 +754,11 @@ function renderTrend(rows){
 
 function renderCategoryDonut(rows){
   const counts = {};
-  rows.forEach(r=> (r.category||'').split(',').forEach(c=>{ c=c.trim(); if(c) counts[c]=(counts[c]||0)+1; }));
+  rows.forEach(r=> (r.category||'').split(',').forEach(c=>{
+    c=c.trim(); if(!c) return;
+    const bucket = isKnownCategory(c) ? c : CATEGORY_OTHER_LABEL;
+    counts[bucket]=(counts[bucket]||0)+1;
+  }));
   const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   const labels = sorted.map(s=>s[0]);
   const data = sorted.map(s=>s[1]);
