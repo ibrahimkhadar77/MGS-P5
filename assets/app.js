@@ -84,6 +84,33 @@ function natureOf(type){
   return 'unsafe';
 }
 function isPositive(type){ return natureOf(type)==='positive'; }
+// The source form's "Type of Observation" field distinguishes Unsafe Act (a person's
+// behavior) from Unsafe Condition (an environmental hazard) -- two genuinely different
+// HSE categories that natureOf() intentionally lumps into one 'unsafe' bucket (kept as-is
+// so charts like Monthly Comparison, which track the simpler 3-way split, are unaffected).
+// This is the finer-grained classifier used wherever the Act/Condition distinction itself
+// matters: KPI cards, quick filters, and the log/report labels. A handful of entries use
+// free text that names both ("UC and UA") or neither (e.g. "Non compliance", "Equipment
+// breakdown") -- rather than guess, those fall into 'unsafeother' so they're never silently
+// mislabeled as one or the other.
+function detailedNature(type){
+  const n = natureOf(type);
+  if(n !== 'unsafe') return n;
+  const t=(type||'').toLowerCase();
+  const hasAct = /unsafe act|\bua\b/.test(t);
+  const hasCondition = /unsafe condition|\buc\b/.test(t);
+  if(hasCondition && !hasAct) return 'unsafecondition';
+  if(hasAct && !hasCondition) return 'unsafeact';
+  return 'unsafeother';
+}
+// Maps any detailedNature() value back to one of the three existing pill color styles
+// (positive/nearmiss/unsafe) so Unsafe Act, Unsafe Condition, and Unsafe Other all reuse
+// the same red "unsafe" visual treatment in compact views like the log table.
+function pillClassFor(dn){
+  if(dn==='positive') return 'positive';
+  if(dn==='nearmiss') return 'nearmiss';
+  return 'unsafe';
+}
 function isOpenStatus(status){ return /open/i.test(status||''); }
 function isCorrected(text){ return /^\s*yes/i.test(text||''); }
 function sevColor(s){
@@ -144,8 +171,8 @@ function openReportModal(row){
   const body = document.getElementById('reportModalBody');
   const title = document.getElementById('reportModalTitle');
   if(!modal || !body || !title) return;
-  const nature = natureOf(row.type);
-  const natureLabel = nature==='positive'?'Positive':nature==='nearmiss'?'Near miss':'Unsafe';
+  const dn = detailedNature(row.type);
+  const natureLabel = {positive:'Positive', nearmiss:'Near miss', unsafeact:'Unsafe act', unsafecondition:'Unsafe condition'}[dn] || 'Unsafe';
   title.textContent = `${row.observer || 'Observation'} · ${row.location || 'Report'}`;
   const section = (key, titleText, bodyHtml, open=true) => `
     <section class="report-section ${open ? 'open' : 'collapsed'}" data-section="${key}">
@@ -162,7 +189,7 @@ function openReportModal(row){
 
   body.innerHTML = `
     <div class="modal-meta">
-      <span class="pill ${nature}">${natureLabel}</span>
+      <span class="pill ${pillClassFor(dn)}">${natureLabel}</span>
       <span class="modal-meta-item"><b>Date</b>${escapeHtml(row.dateObs || '—')}</span>
       <span class="modal-meta-item"><b>Status</b>${escapeHtml(row.status || '—')}</span>
       <span class="modal-meta-item"><b>Severity</b>${row.severity ? 'Level ' + row.severity : 'Not specified'}</span>
@@ -523,9 +550,7 @@ function getFilteredRows(){
     }
     if(FILTERS.category && !rowMatchesCategory(r, FILTERS.category)) return false;
     if(FILTERS.location && normLoc(r.location)!==FILTERS.location) return false;
-    if(FILTERS.quick==='unsafe' && natureOf(r.type)!=='unsafe') return false;
-    if(FILTERS.quick==='positive' && natureOf(r.type)!=='positive') return false;
-    if(FILTERS.quick==='nearmiss' && natureOf(r.type)!=='nearmiss') return false;
+    if(FILTERS.quick && detailedNature(r.type)!==FILTERS.quick) return false;
     if(FILTERS._sev){
       if(FILTERS._sev==='NA'){ if(r.severity!==null) return false; }
       else if(r.severity!==FILTERS._sev) return false;
@@ -539,7 +564,8 @@ function renderChips(){
   if(FILTERS.category) chips.push(['Category: '+FILTERS.category, ()=>{FILTERS.category=null; renderAll();}]);
   if(FILTERS.location) chips.push(['Location: '+FILTERS.location, ()=>{FILTERS.location=null; renderAll();}]);
   if(FILTERS.quick){
-    const qLabel = FILTERS.quick==='unsafe' ? 'Quick: Unsafe only' : FILTERS.quick==='nearmiss' ? 'Quick: Near miss only' : 'Quick: Positive only';
+    const QUICK_LABELS = { unsafeact:'Quick: Unsafe Act only', unsafecondition:'Quick: Unsafe Condition only', nearmiss:'Quick: Near miss only', positive:'Quick: Positive only' };
+    const qLabel = QUICK_LABELS[FILTERS.quick] || 'Quick filter';
     chips.push([qLabel, ()=>{FILTERS.quick=null; renderAll();}]);
   }
   if(FILTERS._sev) chips.push(['Severity: '+(FILTERS._sev==='NA'?'N/A':'Sev '+FILTERS._sev), ()=>{FILTERS._sev=null; renderAll();}]);
@@ -574,25 +600,33 @@ const ICONS = {
   shield: '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/>',
   warn: '<path d="M12 3l9 16H3L12 3z"/><path d="M12 10v4"/><path d="M12 17.5h.01"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5L16 9"/>',
-  pulse: '<path d="M3 12h4l2.5 7L13 5l2.5 7H21"/>'
+  pulse: '<path d="M3 12h4l2.5 7L13 5l2.5 7H21"/>',
+  hazard: '<path d="M12 2L22 12L12 22L2 12Z"/><path d="M12 8v5"/><path d="M12 16h.01"/>'
 };
 
 function renderKpis(rows){
   const total = ALL_ROWS.length;
   const shown = rows.length;
-  const positive = rows.filter(r=>natureOf(r.type)==='positive').length;
-  const nearmiss = rows.filter(r=>natureOf(r.type)==='nearmiss').length;
-  const unsafe = shown - positive - nearmiss;
+  const natures = rows.map(r=>detailedNature(r.type));
+  const positive = natures.filter(n=>n==='positive').length;
+  const nearmiss = natures.filter(n=>n==='nearmiss').length;
+  const unsafeAct = natures.filter(n=>n==='unsafeact').length;
+  const unsafeCondition = natures.filter(n=>n==='unsafecondition').length;
+  // A small number of entries name neither ("Non compliance", "Equipment breakdown") or
+  // both ("UC and UA") -- they still count toward Total Reports but, same as an unclear
+  // designation, aren't forced into either headline card. See detailedNature() above.
   const closed = rows.filter(r=>!isOpenStatus(r.status)).length;
   const closureRate = shown ? ((closed/shown)*100).toFixed(1) : '0.0';
   const pctPositive = shown ? Math.round(100*positive/shown) : 0;
-  const pctUnsafe = shown ? Math.round(100*unsafe/shown) : 0;
+  const pctUnsafeAct = shown ? Math.round(100*unsafeAct/shown) : 0;
+  const pctUnsafeCondition = shown ? Math.round(100*unsafeCondition/shown) : 0;
   const pctNearmiss = shown ? Math.round(100*nearmiss/shown) : 0;
 
   const cards = [
     {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, num:shown, lbl:'TOTAL REPORTS', cap:`${total} database entries`},
     {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations'},
-    {cls:'k-red', quick:'unsafe', icon:ICONS.warn, badge:pctUnsafe+'%', num:unsafe, lbl:'UNSAFE ACTS', cap:'Corrective actions needed'},
+    {cls:'k-red', quick:'unsafeact', icon:ICONS.warn, badge:pctUnsafeAct+'%', num:unsafeAct, lbl:'UNSAFE ACTS', cap:'Behavior-related'},
+    {cls:'k-navy', quick:'unsafecondition', icon:ICONS.hazard, badge:pctUnsafeCondition+'%', num:unsafeCondition, lbl:'UNSAFE CONDITIONS', cap:'Environment/hazard-related'},
     {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse'},
     {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${closed} issues resolved`},
   ];
@@ -865,15 +899,15 @@ function renderTable(rows){
   }
   body.innerHTML = visibleRows.map((r,i)=>{
     const rowIndex = start + i;
-    const nature = natureOf(r.type);
-    const natureLabel = nature==='positive'?'POSITIVE':nature==='nearmiss'?'NEAR MISS':'UNSAFE';
+    const dn = detailedNature(r.type);
+    const natureLabel = {positive:'POSITIVE', nearmiss:'NEAR MISS', unsafeact:'UNSAFE ACT', unsafecondition:'UNSAFE CONDITION'}[dn] || 'UNSAFE';
     const open = isOpenStatus(r.status);
     const tags = (r.category||'').split(',').map(s=>s.trim()).filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join('');
     return `
     <tr class="main-row" data-i="${rowIndex}">
       <td class="km-cell">${(r.dateObs||'').split(' ')[0]||'—'}</td>
       <td class="person"><b>${r.observer}</b><span>${r.designation}</span></td>
-      <td><span class="pill ${nature}">${natureLabel}</span></td>
+      <td><span class="pill ${pillClassFor(dn)}">${natureLabel}</span></td>
       <td class="findings-cell">${(r.what||'').slice(0,90)}${(r.what||'').length>90?'…':''}</td>
       <td><span class="pill ${open?'open':'closed'}">${open?'OPEN':'CLOSED'}</span></td>
       <td class="action-cell">
