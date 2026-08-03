@@ -138,7 +138,6 @@ const KNOWN_CATEGORIES = new Set([
   'line of fire',
   'welfare facility',
 ]);
-const CATEGORY_OTHER_LABEL = 'Other (not on category list)';
 function isKnownCategory(c){ return KNOWN_CATEGORIES.has((c||'').trim().toLowerCase()); }
 function natureOf(type){
   const t=(type||'').toLowerCase();
@@ -599,9 +598,7 @@ function applyLoadedRows(rows, sourceLabel){
    FILTERING
    ============================================================ */
 function rowMatchesCategory(r, cat){
-  const tags = (r.category||'').split(',').map(s=>s.trim()).filter(Boolean);
-  if(cat === CATEGORY_OTHER_LABEL) return tags.some(t=>!isKnownCategory(t));
-  return tags.includes(cat);
+  return (r.category||'').split(',').map(s=>s.trim()).includes(cat);
 }
 function getFilteredRows(){
   return ALL_ROWS.filter(r=>{
@@ -762,10 +759,13 @@ function renderTrend(rows){
 
 function renderCategoryDonut(rows){
   const counts = {};
+  // Only chart recognized categories -- unmatched free text (typos, "Other:" entries not
+  // yet formalized) is skipped here rather than shown as its own slice or grouped into a
+  // catch-all. It's not hidden from the dashboard entirely: it's still on each row's tags
+  // in the Observation Log and matches Global Search, just not summarized in this chart.
   rows.forEach(r=> (r.category||'').split(',').forEach(c=>{
-    c=c.trim(); if(!c) return;
-    const bucket = isKnownCategory(c) ? c : CATEGORY_OTHER_LABEL;
-    counts[bucket]=(counts[bucket]||0)+1;
+    c=c.trim(); if(!c || !isKnownCategory(c)) return;
+    counts[c]=(counts[c]||0)+1;
   }));
   const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   const labels = sorted.map(s=>s[0]);
