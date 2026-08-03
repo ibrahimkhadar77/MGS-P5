@@ -172,6 +172,7 @@ const CATEGORY_ALIASES = {
   'tpi': 'Procedure Compliance',
   'manual excavation': 'Excavation/Trench/Confined Space',
   'confined space': 'Excavation/Trench/Confined Space',
+  'standards/trench/confined…': 'Excavation/Trench/Confined Space', // truncated in the source sheet cell itself; "What was observed" confirms this is a trench/barricade report
   'unwareness regarding company assets': 'Procedure Compliance', // weak match, flagging as uncertain
 };
 // Shared key used for both alias lookup and known-category matching, so spacing quirks
