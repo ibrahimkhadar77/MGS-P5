@@ -87,42 +87,91 @@ function normalizeDesignation(raw){
   if(looksLikeSentence) return 'Other / Unclear';
   return trimmed.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
 }
-// The "Category of Unsafe Act/Condition/Near Miss" field on the form got a few options
-// renamed at some point, so historical rows and new rows can carry different text for
-// what's really the same category. Only mapping the rename that's unambiguous -- "Vehicle
-// /Forklift Operation" was broadened to "Vehicle/Equipment Operation", same meaning, safe
-// to merge. NOT mapping "Procedure Violation/Lack of Training", which the form split into
-// two separate new options ("Procedure Violation" and "Training") -- there's no way to know
-// which one each old entry meant, so it's left as its own (naturally fading) legacy label
-// rather than guessed into one bucket.
+// The "Category of Unsafe Act/Condition/Near Miss" form question has been revised a few
+// times -- options renamed, split, or added -- so historical rows carry a mix of old and
+// current wording, plus a long tail of free-text "Other" entries. Everything below maps
+// each raw variant to the CURRENT form wording (as of the latest edit) so history and new
+// submissions read as one consistent set. "Procedure Violation" was renamed to "Procedure
+// Compliance" on the form -- assuming that's a neutral topic label (paired with the
+// separate Type of Observation field to say whether it was a violation or a compliant
+// example), so legacy violation-flavored text rolls up there too; flag if that's wrong.
 const CATEGORY_ALIASES = {
   'vehicle/forklift operation': 'Vehicle/Equipment Operation',
+  'road safety': 'Vehicle/Equipment Operation',
+  'road safety violation': 'Vehicle/Equipment Operation',
+  '360 camera': 'Vehicle/Equipment Operation',
+  'hmi': 'Vehicle/Equipment Operation',
+  'heavy equipments operation': 'Vehicle/Equipment Operation',
+
   'heat stress': 'Heat Stress',
+  'occupation health safety/heat stress': 'Heat Stress',
+  'heat stress prevention': 'Heat Stress',
+
   'access slip trip': 'Slips, Trips & Falls',
   'slips and trips': 'Slips, Trips & Falls',
   'slip and trips': 'Slips, Trips & Falls',
   'slip trip': 'Slips, Trips & Falls',
+
   'safe distance/line of fire': 'Line of Fire',
-  'welfare facilities': 'Welfare Facility',
-  'welfare': 'Welfare Facility',
-  'walefare facilities': 'Welfare Facility',
-  'facilities': 'Welfare Facility',
-  'facility welfare': 'Welfare Facility',
-  'welfare/facility': 'Welfare Facility',
+
+  'welfare facility': 'Health & Welfare',
+  'welfare facilities': 'Health & Welfare',
+  'welfare': 'Health & Welfare',
+  'walefare facilities': 'Health & Welfare',
+  'facilities': 'Health & Welfare',
+  'facility welfare': 'Health & Welfare',
+  'welfare/facility': 'Health & Welfare',
+  'health': 'Health & Welfare',
+  'health concerned': 'Health & Welfare',
+  'unwareness regarding personnel health': 'Health & Welfare',
+  'safety health of workers': 'Health & Welfare',
+  'workers wellbeing': 'Health & Welfare',
+
   'barricades/signage': 'Barrication & Signages',
   'barricade': 'Barrication & Signages',
   'barricading': 'Barrication & Signages',
+
   'hand tools': 'Tools/Equipment Defects or Misuse',
   'hand and power tools': 'Tools/Equipment Defects or Misuse',
   'hand tools power tools safety': 'Tools/Equipment Defects or Misuse',
-  'rpe': 'Personal Protective Equipment (PPE) Violation/Lack of',
-  'working without permit': 'Procedure Violation',
-  'fire extinguisher': 'Fire Safety/Egress Issues',
-  'no fire watch': 'Fire Safety/Egress Issues',
-  'road safety': 'Vehicle/Equipment Operation',
-  'road safety violation': 'Vehicle/Equipment Operation',
+  'end cap missing': 'Tools/Equipment Defects or Misuse',
+  'tuv /calineration': 'Tools/Equipment Defects or Misuse',
+  'monthly color code': 'Tools/Equipment Defects or Misuse',
+  'hose safety': 'Tools/Equipment Defects or Misuse',
+  'abrasive blasting safety': 'Tools/Equipment Defects or Misuse',
+  'scc': 'Tools/Equipment Defects or Misuse',
+
+  'rpe': 'Personal Protective Equipment (PPE) Violation/Lack of PPE',
+  'personal protective equipment (ppe) violation/lack of': 'Personal Protective Equipment (PPE) Violation/Lack of PPE',
+
+  'electrical hazards/lockout tagout (loto)': 'Electrical Hazards/Lockout Tagout',
+  'the rcd electrical socket enclosure was found damaged and not properly secured': 'Electrical Hazards/Lockout Tagout',
+
+  'unsecured working platform': 'Working at Height/Fall Protection',
+
+  'fire safety/egress issues': 'Hot work / Fire Safety / Egress Issues',
+  'fire extinguisher': 'Hot work / Fire Safety / Egress Issues',
+  'no fire watch': 'Hot work / Fire Safety / Egress Issues',
+
   'refresher training & stan-down meeting': 'Training',
   'refresher training for firewatch men and stand down meeting': 'Training',
+  'certificate) training card': 'Training',
+  'drill assessment': 'Training',
+
+  'good practice': 'Positive Observation',
+  'safe practice': 'Positive Observation',
+  'behavior safety': 'Positive Observation',
+  'positive observation': 'Positive Observation', // normalizes case variant "Positive observation"
+
+  'procedure violation': 'Procedure Compliance',
+  'procedure violation/lack of training': 'Procedure Compliance',
+  'working without permit': 'Procedure Compliance',
+  'working without valid work permit and the work permit receiver was not present': 'Procedure Compliance',
+  'work procedure followed': 'Procedure Compliance',
+  'racs standard violation (mmsr)': 'Procedure Compliance',
+  'tpi': 'Procedure Compliance',
+  'manual excavation': 'Procedure Compliance',
+  'unwareness regarding company assets': 'Procedure Compliance', // weak match, flagging as uncertain
 };
 function normalizeCategoryString(raw){
   return (raw||'').split(',').map(c=>c.trim()).filter(Boolean).map(c=>{
@@ -133,32 +182,30 @@ function normalizeCategoryString(raw){
   }).join(', ');
 }
 // The Category question offers a fixed checklist plus a free-text "Other" field.
-// Recent submissions have used "Other" heavily for things that aren't on the list --
-// some are recurring real hazards worth recognizing (Heat Stress shows up often enough
-// to treat as its own category), most are one-off phrasing that would otherwise clutter
-// the chart with a dozen single-count slices. Anything not in this recognized set gets
-// folded into a combined "Other" slice for the Categories chart specifically -- the full,
-// unfolded text is still preserved on each row (tags in the log, search) and nothing here
-// changes what's actually stored, only how the chart groups it for readability.
+// Anything not in this recognized set (current form wording, matched via the aliases
+// above) is left out of the Categories chart entirely rather than shown as its own slice
+// or grouped into a catch-all -- the full, original text is still preserved on each row
+// (tags in the log, search) and nothing here changes what's actually stored.
 const KNOWN_CATEGORIES = new Set([
-  'personal protective equipment (ppe) violation/lack of',
+  'personal protective equipment (ppe) violation/lack of ppe',
   'housekeeping/clutter',
   'working at height/fall protection',
   'tools/equipment defects or misuse',
   'manual handling/lifting',
-  'electrical hazards/lockout tagout (loto)',
+  'electrical hazards/lockout tagout',
   'vehicle/equipment operation',
   'chemical/material handling',
-  'procedure violation',
-  'fire safety/egress issues',
+  'hot work / fire safety / egress issues',
   'environmental',
   'training',
   'barrication & signages',
-  'procedure violation/lack of training', // legacy pre-split label, see CATEGORY_ALIASES note
-  'heat stress',
   'slips, trips & falls',
   'line of fire',
-  'welfare facility',
+  'health & welfare',
+  'heat stress',
+  'positive observation',
+  'procedure compliance',
+  'confined space',
 ]);
 function isKnownCategory(c){ return KNOWN_CATEGORIES.has((c||'').trim().toLowerCase()); }
 function natureOf(type){
