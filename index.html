@@ -62,7 +62,7 @@
 
   <div id="chipRow"></div>
 
-  <div class="kpis" id="kpiRow"></div>
+  <div class="kpis" id="kpiRow"><div class="kpi-skel"><div class="skel-bar skel-ic"></div><div class="skel-bar skel-num"></div><div class="skel-bar skel-lbl"></div><div class="skel-bar skel-cap"></div></div><div class="kpi-skel"><div class="skel-bar skel-ic"></div><div class="skel-bar skel-num"></div><div class="skel-bar skel-lbl"></div><div class="skel-bar skel-cap"></div></div><div class="kpi-skel"><div class="skel-bar skel-ic"></div><div class="skel-bar skel-num"></div><div class="skel-bar skel-lbl"></div><div class="skel-bar skel-cap"></div></div><div class="kpi-skel"><div class="skel-bar skel-ic"></div><div class="skel-bar skel-num"></div><div class="skel-bar skel-lbl"></div><div class="skel-bar skel-cap"></div></div><div class="kpi-skel"><div class="skel-bar skel-ic"></div><div class="skel-bar skel-num"></div><div class="skel-bar skel-lbl"></div><div class="skel-bar skel-cap"></div></div><div class="kpi-skel"><div class="skel-bar skel-ic"></div><div class="skel-bar skel-num"></div><div class="skel-bar skel-lbl"></div><div class="skel-bar skel-cap"></div></div></div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="overview">Overview</button>
@@ -263,6 +263,18 @@
 // Presentation-only helpers: live clock + a decorative appearance toggle.
 // Neither touches ALL_ROWS, filters, charts, or any dashboard logic.
 (function(){
+  // One-time signal that initial data load has finished (success or failure):
+  // renderKpis() always replaces #kpiRow's content exactly once when loading concludes,
+  // so watching that swap is enough to know when to fade out the chart/list skeletons.
+  // Pure presentation -- doesn't read or touch ALL_ROWS/FILTERS/any chart state.
+  var kpiRow = document.getElementById('kpiRow');
+  if(kpiRow){
+    var loadObserver = new MutationObserver(function(){
+      document.body.classList.add('data-loaded');
+      loadObserver.disconnect();
+    });
+    loadObserver.observe(kpiRow, {childList:true});
+  }
   var clockEl = document.getElementById('headerClock');
   function tick(){
     if(!clockEl) return;
