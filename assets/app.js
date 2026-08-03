@@ -117,6 +117,12 @@ const CATEGORY_ALIASES = {
   'hand tools power tools safety': 'Tools/Equipment Defects or Misuse',
   'rpe': 'Personal Protective Equipment (PPE) Violation/Lack of',
   'working without permit': 'Procedure Violation',
+  'fire extinguisher': 'Fire Safety/Egress Issues',
+  'no fire watch': 'Fire Safety/Egress Issues',
+  'road safety': 'Vehicle/Equipment Operation',
+  'road safety violation': 'Vehicle/Equipment Operation',
+  'refresher training & stan-down meeting': 'Training',
+  'refresher training for firewatch men and stand down meeting': 'Training',
 };
 function normalizeCategoryString(raw){
   return (raw||'').split(',').map(c=>c.trim()).filter(Boolean).map(c=>{
