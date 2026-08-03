@@ -135,7 +135,8 @@ const CATEGORY_ALIASES = {
   'hand and power tools': 'Tools/Equipment Defects or Misuse',
   'hand tools power tools safety': 'Tools/Equipment Defects or Misuse',
   'end cap missing': 'Tools/Equipment Defects or Misuse',
-  'tuv /calineration': 'Tools/Equipment Defects or Misuse',
+  'tuv/calineration': 'Tools/Equipment Defects or Misuse', // was 'tuv /calineration' -- fixed key to match categoryKey()'s slash-space collapsing, which was silently preventing this alias from ever matching
+  'wind speed': 'Environmental',
   'monthly color code': 'Tools/Equipment Defects or Misuse',
   'hose safety': 'Tools/Equipment Defects or Misuse',
   'abrasive blasting safety': 'Tools/Equipment Defects or Misuse',
