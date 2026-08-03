@@ -10,7 +10,7 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdqH02gUYfWAcH
 const DATA_SOURCE_MODE = "apps-script"; // apps-script | direct-sheet | auto
 const REFRESH_MS = 300 * 60 * 1000;
 
-const PALETTE = ['#1E8E5A','#2F6FE0','#A98A1E','#1F3A5F','#6C4FD1','#D64545','#1E9E96','#8A8F98','#C9862C','#4B6F44','#B5566B','#5E8AA6','#9C6B30','#4A4E69'];
+const PALETTE = ['#10B981','#2563EB','#F59E0B','#7C3AED','#8B5CF6','#EF4444','#0D9488','#94A3B8','#F97316','#22C55E','#EC4899','#0EA5E9','#CA8A04','#334155'];
 const LOG_PAGE_SIZE = 25;
 
 /* ============================================================
@@ -251,8 +251,8 @@ function pillClassFor(dn){
 function isOpenStatus(status){ return /open/i.test(status||''); }
 function isCorrected(text){ return /^\s*yes/i.test(text||''); }
 function sevColor(s){
-  if(s===null || s===undefined) return '#B9BEC6';
-  return s>=5?'#7A2E24':s===4?'#B23A2E':s===3?'#D64545':s===2?'#A98A1E':'#1E8E5A';
+  if(s===null || s===undefined) return '#CBD5E1';
+  return s>=5?'#991B1B':s===4?'#DC2626':s===3?'#EF4444':s===2?'#F59E0B':'#10B981';
 }
 function parseDate(str){
   if(!str) return null;
@@ -742,13 +742,15 @@ function renderAll(){
 }
 
 function svgIcon(path, extra){ return `<svg class="ic" style="${extra||''}" viewBox="0 0 24 24">${path}</svg>`; }
+// Lucide-equivalent glyphs (ClipboardList, ShieldCheck, TriangleAlert, HardHat, Activity, CheckCircle2).
+// Same object keys as before -- every call site (renderKpis) is unchanged.
 const ICONS = {
-  doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
-  shield: '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/>',
-  warn: '<path d="M12 3l9 16H3L12 3z"/><path d="M12 10v4"/><path d="M12 17.5h.01"/>',
-  check: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5L16 9"/>',
-  pulse: '<path d="M3 12h4l2.5 7L13 5l2.5 7H21"/>',
-  hazard: '<path d="M12 2L22 12L12 22L2 12Z"/><path d="M12 8v5"/><path d="M12 16h.01"/>'
+  doc: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  warn: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  check: '<path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/>',
+  pulse: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
+  hazard: '<path d="M10 20a1 1 0 0 0 .553.895l2 1a1 1 0 0 0 .894 0l2-1A1 1 0 0 0 16 20v-2a4 4 0 1 0-6 0z"/><path d="M12 3v2"/><path d="M3 7h18"/><path d="M6 7v-2"/><path d="M18 7v-2"/><path d="M9 7v10"/><path d="M15 7v10"/>'
 };
 
 function renderKpis(rows){
@@ -905,7 +907,7 @@ function renderSeverity(rows){
   rows.forEach(r=>{ if(r.severity===null){counts.NA++;} else {counts[r.severity]=(counts[r.severity]||0)+1;} });
   const labels = ['Sev 1','Sev 2','Sev 3','Sev 4','Sev 5','N/A'];
   const data = [counts[1],counts[2],counts[3],counts[4],counts[5],counts.NA];
-  const colors = ['#1E8E5A','#A98A1E','#D64545','#B23A2E','#7A2E24','#B9BEC6'];
+  const colors = ['#10B981','#F59E0B','#EF4444','#DC2626','#991B1B','#CBD5E1'];
   drawBar('sevChart', labels, data, (label)=>{
     const sevVal = label==='N/A' ? 'NA' : parseInt(label.split(' ')[1]);
     FILTERS._sev = FILTERS._sev===sevVal ? null : sevVal;
@@ -940,7 +942,7 @@ function renderCadence(rows){
   const byWeek = {};
   rows.forEach(r=>{ const d=parseDate(r.dateObs); if(!d) return; const k=weekKey(d); byWeek[k]=(byWeek[k]||0)+1; });
   const weeks = Object.keys(byWeek).sort();
-  drawBar('cadenceChart', weeks.map(w=>w.split('-W')[1]?('W'+w.split('-W')[1]):w), weeks.map(w=>byWeek[w]), null, '#2F6FE0');
+  drawBar('cadenceChart', weeks.map(w=>w.split('-W')[1]?('W'+w.split('-W')[1]):w), weeks.map(w=>byWeek[w]), null, '#2563EB');
 }
 
 function renderMonthly(rows){
@@ -959,19 +961,22 @@ function renderMonthly(rows){
     data:{
       labels: months.map(monthLabel),
       datasets:[
-        { label:'Positive', data: months.map(m=>buckets[m].positive), backgroundColor:'#1E8E5A', borderRadius:3 },
-        { label:'Unsafe Act', data: months.map(m=>buckets[m].unsafeact), backgroundColor:'#D64545', borderRadius:3 },
-        { label:'Unsafe Condition', data: months.map(m=>buckets[m].unsafecondition), backgroundColor:'#1F3A5F', borderRadius:3 },
-        { label:'Near miss', data: months.map(m=>buckets[m].nearmiss), backgroundColor:'#A98A1E', borderRadius:3 },
-        { label:'Other', data: months.map(m=>buckets[m].unsafeother), backgroundColor:'#8A8F98', borderRadius:3 },
+        { label:'Positive', data: months.map(m=>buckets[m].positive), backgroundColor:'#10B981', borderRadius:4 },
+        { label:'Unsafe Act', data: months.map(m=>buckets[m].unsafeact), backgroundColor:'#EF4444', borderRadius:4 },
+        { label:'Unsafe Condition', data: months.map(m=>buckets[m].unsafecondition), backgroundColor:'#7C3AED', borderRadius:4 },
+        { label:'Near miss', data: months.map(m=>buckets[m].nearmiss), backgroundColor:'#F59E0B', borderRadius:4 },
+        { label:'Other', data: months.map(m=>buckets[m].unsafeother), backgroundColor:'#94A3B8', borderRadius:4 },
       ]
     },
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ font:{family:'Inter',size:10.5}, color:'#6B7280', boxWidth:10 } } },
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:'#475569', boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
+        tooltip:{ backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
+      },
       scales:{
-        x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'IBM Plex Mono',size:9.5}, color:'#6B7280'} },
-        y:{ stacked:true, grid:{color:'#EEF0EA'}, ticks:{font:{family:'IBM Plex Mono',size:9.5}, color:'#9AA1AC'} }
+        x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B'} },
+        y:{ stacked:true, grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#94A3B8'} }
       }
     }
   });
@@ -1114,13 +1119,17 @@ function drawLineChart(id, labels, data, fullLabels){
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {
     type:'line',
-    data:{ labels, datasets:[{ label:'Reports', data, borderColor:'#1E8E5A', backgroundColor:'rgba(30,142,90,0.12)', fill:true, tension:.35, pointRadius:3, pointHoverRadius:5, borderWidth:2 }] },
+    data:{ labels, datasets:[{ label:'Reports', data, borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,0.10)', fill:true, tension:.4, pointRadius:0, pointHoverRadius:5, pointHoverBackgroundColor:'#2563EB', pointHoverBorderColor:'#fff', pointHoverBorderWidth:2, borderWidth:2.5 }] },
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{mode:'nearest', intersect:false},
+      animation:{duration:600, easing:'easeOutQuart'},
       plugins:{
         legend:{display:false},
         tooltip:{
+          backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
+          padding:10, cornerRadius:10, displayColors:false,
+          titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5},
           callbacks:{
             title:(items)=>{
               const index = items[0].dataIndex;
@@ -1133,8 +1142,8 @@ function drawLineChart(id, labels, data, fullLabels){
       scales:{
         x:{
           ticks:{
-            color:'#6B7280',
-            font:{family:'IBM Plex Mono',size:9},
+            color:'#64748B',
+            font:{family:'Inter',size:10.5},
             maxRotation:0,
             autoSkip:true,
             maxTicksLimit:10,
@@ -1143,10 +1152,10 @@ function drawLineChart(id, labels, data, fullLabels){
           grid:{display:false}
         },
         y:{
-          grid:{color:'#EEF0EA'},
+          grid:{color:'rgba(15,23,42,.05)'},
           ticks:{
-            font:{family:'IBM Plex Mono',size:9.5},
-            color:'#9AA1AC',
+            font:{family:'Inter',size:10.5},
+            color:'#94A3B8',
             precision:0,
             callback:(value)=>String(Math.round(value))
           },
@@ -1164,10 +1173,17 @@ function drawDoughnut(id, labels, data, colors, onClick){
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {
     type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:2, borderColor:'#fff' }] },
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:3, borderColor:'#fff', hoverOffset:6 }] },
     options:{
-      responsive:true, cutout:'62%', maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
+      responsive:true, cutout:'66%', maintainAspectRatio:false,
+      animation:{duration:600, easing:'easeOutQuart'},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
+          padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
+        }
+      },
       onClick:(evt,els)=>{ if(els.length) onClick(labels[els[0].index]); },
       onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length?'pointer':'default'; }
     }
@@ -1176,17 +1192,24 @@ function drawDoughnut(id, labels, data, colors, onClick){
 function drawBar(id, labels, data, onClick, colors){
   const ctx = document.getElementById(id);
   if(charts[id]) charts[id].destroy();
-  const bg = Array.isArray(colors) ? colors : (colors || '#1E8E5A');
+  const bg = Array.isArray(colors) ? colors : (colors || '#2563EB');
   charts[id] = new Chart(ctx, {
     type:'bar',
-    data:{ labels, datasets:[{ data, backgroundColor:bg, borderRadius:4 }] },
+    data:{ labels, datasets:[{ data, backgroundColor:bg, borderRadius:5, maxBarThickness:26 }] },
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
+      animation:{duration:500, easing:'easeOutQuart'},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
+          padding:10, cornerRadius:10, displayColors:false, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
+        }
+      },
       scales:{
-        x:{ grid:{color:'#EEF0EA'}, ticks:{font:{family:'IBM Plex Mono',size:9}, color:'#6B7280', precision:0, callback:(value)=>String(Math.round(value))} , beginAtZero:true },
-        y:{ grid:{display:false}, ticks:{font:{family:'Inter',size:10}, color:'#14181F'} }
+        x:{ grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B', precision:0, callback:(value)=>String(Math.round(value))} , beginAtZero:true },
+        y:{ grid:{display:false}, ticks:{font:{family:'Inter',size:11,weight:'500'}, color:'#0F172A'} }
       },
       onClick: onClick ? (evt,els)=>{ if(els.length) onClick(labels[els[0].index]); } : undefined,
       onHover: onClick ? (evt,els)=>{ evt.native.target.style.cursor = els.length?'pointer':'default'; } : undefined
