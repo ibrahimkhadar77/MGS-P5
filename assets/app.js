@@ -170,15 +170,19 @@ const CATEGORY_ALIASES = {
   'work procedure followed': 'Procedure Compliance',
   'racs standard violation (mmsr)': 'Procedure Compliance',
   'tpi': 'Procedure Compliance',
-  'manual excavation': 'Procedure Compliance',
+  'manual excavation': 'Excavation/Trench/Confined Space',
+  'confined space': 'Excavation/Trench/Confined Space',
   'unwareness regarding company assets': 'Procedure Compliance', // weak match, flagging as uncertain
 };
+// Shared key used for both alias lookup and known-category matching, so spacing quirks
+// around slashes (e.g. "Hot work / Fire Safety" vs "Hot work/Fire Safety") never cause a
+// mismatch between the two -- both call this same function.
+function categoryKey(c){
+  return (c||'').trim().toLowerCase().replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim();
+}
 function normalizeCategoryString(raw){
   return (raw||'').split(',').map(c=>c.trim()).filter(Boolean).map(c=>{
-    // Collapse spaces around slashes too (e.g. "Safe distance / line of fire" should match
-    // the same alias as "Safe distance/line of fire") in addition to general whitespace.
-    const key = c.toLowerCase().replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim();
-    return CATEGORY_ALIASES[key] || c;
+    return CATEGORY_ALIASES[categoryKey(c)] || c;
   }).join(', ');
 }
 // The Category question offers a fixed checklist plus a free-text "Other" field.
@@ -195,7 +199,7 @@ const KNOWN_CATEGORIES = new Set([
   'electrical hazards/lockout tagout',
   'vehicle/equipment operation',
   'chemical/material handling',
-  'hot work / fire safety / egress issues',
+  'hot work/fire safety/egress issues',
   'environmental',
   'training',
   'barrication & signages',
@@ -205,9 +209,9 @@ const KNOWN_CATEGORIES = new Set([
   'heat stress',
   'positive observation',
   'procedure compliance',
-  'confined space',
+  'excavation/trench/confined space',
 ]);
-function isKnownCategory(c){ return KNOWN_CATEGORIES.has((c||'').trim().toLowerCase()); }
+function isKnownCategory(c){ return KNOWN_CATEGORIES.has(categoryKey(c)); }
 function natureOf(type){
   const t=(type||'').toLowerCase();
   if(t.includes('positive')) return 'positive';
