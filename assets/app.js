@@ -753,6 +753,34 @@ const ICONS = {
   hazard: '<path d="M10 20a1 1 0 0 0 .553.895l2 1a1 1 0 0 0 .894 0l2-1A1 1 0 0 0 16 20v-2a4 4 0 1 0-6 0z"/><path d="M12 3v2"/><path d="M3 7h18"/><path d="M6 7v-2"/><path d="M18 7v-2"/><path d="M9 7v10"/><path d="M15 7v10"/>'
 };
 
+// Real day-over-day comparison for the KPI trend row (not decorative filler):
+// counts how many of the currently-filtered rows fall on today's calendar date vs
+// yesterday's, per KPI category, and expresses that as a percent change. Returns
+// null when there's nothing to meaningfully compare (no rows on either day).
+function dayOverDayTrend(rows, matchFn){
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+  const sameDay = (d, ref) => d && d.getFullYear()===ref.getFullYear() && d.getMonth()===ref.getMonth() && d.getDate()===ref.getDate();
+  let todayCount = 0, yestCount = 0;
+  rows.forEach(r=>{
+    if(!matchFn(r)) return;
+    const d = parseDate(r.dateObs);
+    if(!d) return;
+    if(sameDay(d, today)) todayCount++;
+    else if(sameDay(d, yesterday)) yestCount++;
+  });
+  if(todayCount===0 && yestCount===0) return null;
+  if(yestCount===0) return {dir:'up', text:'New today'};
+  const pct = Math.round(((todayCount-yestCount)/yestCount)*100);
+  if(pct===0) return {dir:'flat', text:'Flat vs yesterday'};
+  return {dir: pct>0?'up':'down', text:`${pct>0?'+':''}${pct}% vs yesterday`};
+}
+function kpiTrendHtml(trend){
+  if(!trend) return '';
+  const arrow = trend.dir==='up' ? '&#8593;' : trend.dir==='down' ? '&#8595;' : '&#8594;';
+  return `<div class="kpi-trend trend-${trend.dir}">${arrow} ${trend.text}</div>`;
+}
+
 function renderKpis(rows){
   const total = ALL_ROWS.length;
   const shown = rows.length;
@@ -771,19 +799,44 @@ function renderKpis(rows){
   const pctUnsafeCondition = shown ? Math.round(100*unsafeCondition/shown) : 0;
   const pctNearmiss = shown ? Math.round(100*nearmiss/shown) : 0;
 
+  const trendTotal = dayOverDayTrend(rows, ()=>true);
+  const trendPositive = dayOverDayTrend(rows, r=>detailedNature(r.type)==='positive');
+  const trendUnsafeAct = dayOverDayTrend(rows, r=>detailedNature(r.type)==='unsafeact');
+  const trendUnsafeCondition = dayOverDayTrend(rows, r=>detailedNature(r.type)==='unsafecondition');
+  const trendNearmiss = dayOverDayTrend(rows, r=>detailedNature(r.type)==='nearmiss');
+  // Closure rate isn't a daily count -- it's compared as a percentage-point shift between
+  // "rate as of yesterday" and "rate as of today" (cumulative), which is the only reading
+  // of "vs yesterday" that means anything for a running rate rather than a per-day tally.
+  const trendClosure = (()=>{
+    const today = new Date(); const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+    const asOf = (cutoff) => {
+      const subset = rows.filter(r=>{ const d=parseDate(r.dateObs); return d && d<=cutoff; });
+      if(!subset.length) return null;
+      return 100*subset.filter(r=>!isOpenStatus(r.status)).length/subset.length;
+    };
+    const endOfToday = new Date(today); endOfToday.setHours(23,59,59,999);
+    const endOfYesterday = new Date(yesterday); endOfYesterday.setHours(23,59,59,999);
+    const rateToday = asOf(endOfToday), rateYesterday = asOf(endOfYesterday);
+    if(rateToday===null || rateYesterday===null) return null;
+    const delta = +(rateToday-rateYesterday).toFixed(1);
+    if(delta===0) return {dir:'flat', text:'Flat vs yesterday'};
+    return {dir: delta>0?'up':'down', text:`${delta>0?'+':''}${delta}pt vs yesterday`};
+  })();
+
   const cards = [
-    {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, num:shown, lbl:'TOTAL REPORTS', cap:`${total} database entries`},
-    {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations'},
-    {cls:'k-red', quick:'unsafeact', icon:ICONS.warn, badge:pctUnsafeAct+'%', num:unsafeAct, lbl:'UNSAFE ACTS', cap:'Behavior-related'},
-    {cls:'k-navy', quick:'unsafecondition', icon:ICONS.hazard, badge:pctUnsafeCondition+'%', num:unsafeCondition, lbl:'UNSAFE CONDITIONS', cap:'Environment/hazard-related'},
-    {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse'},
-    {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${closed} issues resolved`},
+    {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, num:shown, lbl:'TOTAL REPORTS', cap:`${total} database entries`, trend:trendTotal},
+    {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations', trend:trendPositive},
+    {cls:'k-red', quick:'unsafeact', icon:ICONS.warn, badge:pctUnsafeAct+'%', num:unsafeAct, lbl:'UNSAFE ACTS', cap:'Behavior-related', trend:trendUnsafeAct},
+    {cls:'k-navy', quick:'unsafecondition', icon:ICONS.hazard, badge:pctUnsafeCondition+'%', num:unsafeCondition, lbl:'UNSAFE CONDITIONS', cap:'Environment/hazard-related', trend:trendUnsafeCondition},
+    {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse', trend:trendNearmiss},
+    {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${closed} issues resolved`, trend:trendClosure},
   ];
   document.getElementById('kpiRow').innerHTML = cards.map(c=>`
     <div class="kpi ${c.cls} ${FILTERS.quick===c.quick && c.quick ? 'active':''}" data-quick="${c.quick||''}">
       <div class="kpi-top"><div class="kpi-ic">${svgIcon(c.icon,'width:15px;height:15px')}</div>${c.badge?`<div class="kpi-badge">${c.badge}</div>`:''}</div>
       <div class="num">${c.num}</div>
       <div class="lbl">${c.lbl}</div>
+      ${kpiTrendHtml(c.trend)}
       <div class="cap">${c.cap}</div>
     </div>`).join('');
   Array.from(document.querySelectorAll('.kpi')).forEach(el=>{
