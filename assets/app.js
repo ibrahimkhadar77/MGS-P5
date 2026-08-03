@@ -101,12 +101,28 @@ const CATEGORY_ALIASES = {
   'access slip trip': 'Slips, Trips & Falls',
   'slips and trips': 'Slips, Trips & Falls',
   'slip and trips': 'Slips, Trips & Falls',
+  'slip trip': 'Slips, Trips & Falls',
   'safe distance/line of fire': 'Line of Fire',
   'welfare facilities': 'Welfare Facility',
+  'welfare': 'Welfare Facility',
+  'walefare facilities': 'Welfare Facility',
+  'facilities': 'Welfare Facility',
+  'facility welfare': 'Welfare Facility',
+  'welfare/facility': 'Welfare Facility',
+  'barricades/signage': 'Barrication & Signages',
+  'barricade': 'Barrication & Signages',
+  'barricading': 'Barrication & Signages',
+  'hand tools': 'Tools/Equipment Defects or Misuse',
+  'hand and power tools': 'Tools/Equipment Defects or Misuse',
+  'hand tools power tools safety': 'Tools/Equipment Defects or Misuse',
+  'rpe': 'Personal Protective Equipment (PPE) Violation/Lack of',
+  'working without permit': 'Procedure Violation',
 };
 function normalizeCategoryString(raw){
   return (raw||'').split(',').map(c=>c.trim()).filter(Boolean).map(c=>{
-    const key = c.toLowerCase().replace(/\s+/g,' ');
+    // Collapse spaces around slashes too (e.g. "Safe distance / line of fire" should match
+    // the same alias as "Safe distance/line of fire") in addition to general whitespace.
+    const key = c.toLowerCase().replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim();
     return CATEGORY_ALIASES[key] || c;
   }).join(', ');
 }
