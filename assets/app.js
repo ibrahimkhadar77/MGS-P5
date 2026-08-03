@@ -21,6 +21,9 @@ let charts = {};
 let logPage = 1;
 let logRowsCache = [];
 let trendYMax = 1;
+// Cache of the full (already-trimmed) trend series so the zoom/scrub slider can re-slice
+// and redraw just this one chart locally, without recomputing from rows or touching FILTERS.
+let trendCache = { days: [], labels: [], titles: [], counts: [] };
 const FILTERS = { observer:'All', designation:'All', status:'All', search:'', category:null, location:null, quick:null, _sev:null };
 
 /* ============================================================
@@ -876,10 +879,29 @@ function renderTrend(rows){
   const excludedDays = allDays.slice(0, cut);
   const days = allDays.length ? allDays.slice(cut) : allDays;
 
-  const labels = days.map(day => formatTrendLabel(new Date(day + 'T00:00:00')));
-  const titles = days.map(day => formatTrendTitle(new Date(day + 'T00:00:00')));
-  trendYMax = Math.max(1, ...days.map(d=>byDay.get(d) || 0));
-  drawLineChart('trendChart', labels, days.map(d=>byDay.get(d)), titles);
+  trendCache = {
+    days,
+    labels: days.map(day => formatTrendLabel(new Date(day + 'T00:00:00'))),
+    titles: days.map(day => formatTrendTitle(new Date(day + 'T00:00:00'))),
+    counts: days.map(d => byDay.get(d) || 0)
+  };
+
+  const slider = document.getElementById('trendSlider');
+  const startInput = document.getElementById('trendSliderStart');
+  const endInput = document.getElementById('trendSliderEnd');
+  if(slider && startInput && endInput){
+    if(days.length > 1){
+      slider.style.display = 'block';
+      startInput.min = endInput.min = 0;
+      startInput.max = endInput.max = days.length - 1;
+      // A fresh render (new filters/data) always resets the scrub window back to the full range.
+      startInput.value = 0;
+      endInput.value = days.length - 1;
+    } else {
+      slider.style.display = 'none';
+    }
+  }
+  applyTrendWindow();
 
   const note = document.getElementById('trendNote');
   if(note){
@@ -893,6 +915,38 @@ function renderTrend(rows){
       note.style.display = 'none';
     }
   }
+}
+
+// Redraws the Reporting Trend chart from the cached full series, sliced to whatever
+// window the scrub slider currently has selected. Purely a local view of the same data
+// -- doesn't touch FILTERS, doesn't call renderAll(), and doesn't affect any other chart,
+// KPI, or the log table.
+function applyTrendWindow(){
+  const startInput = document.getElementById('trendSliderStart');
+  const endInput = document.getElementById('trendSliderEnd');
+  const rangeEl = document.getElementById('trendSliderRange');
+  const startLbl = document.getElementById('trendSliderStartLabel');
+  const endLbl = document.getElementById('trendSliderEndLabel');
+  const { days, labels, titles, counts } = trendCache;
+
+  let startIdx = 0, endIdx = days.length - 1;
+  if(startInput && endInput && days.length > 1){
+    startIdx = Math.min(parseInt(startInput.value), parseInt(endInput.value));
+    endIdx = Math.max(parseInt(startInput.value), parseInt(endInput.value));
+    const maxIdx = days.length - 1;
+    if(rangeEl){
+      const leftPct = maxIdx ? (startIdx / maxIdx) * 100 : 0;
+      const rightPct = maxIdx ? (endIdx / maxIdx) * 100 : 100;
+      rangeEl.style.left = leftPct + '%';
+      rangeEl.style.width = (rightPct - leftPct) + '%';
+    }
+    if(startLbl) startLbl.textContent = titles[startIdx] ? titles[startIdx].split(',').slice(0,2).join(',') : '';
+    if(endLbl) endLbl.textContent = titles[endIdx] ? titles[endIdx].split(',').slice(0,2).join(',') : '';
+  }
+
+  const winCounts = counts.slice(startIdx, endIdx + 1);
+  trendYMax = Math.max(1, ...winCounts, 0);
+  drawLineChart('trendChart', labels.slice(startIdx, endIdx + 1), winCounts, titles.slice(startIdx, endIdx + 1));
 }
 
 function renderCategoryDonut(rows){
@@ -1316,6 +1370,25 @@ document.getElementById('clearFiltersBtn').addEventListener('click', ()=>{
   FILTERS.observer='All'; FILTERS.designation='All'; FILTERS.status='All'; FILTERS.search=''; FILTERS.category=null; FILTERS.location=null; FILTERS.quick=null; FILTERS._sev=null;
   document.getElementById('fSearch').value=''; syncDropdowns(); renderAll();
 });
+
+// Reporting Trend scrub/zoom slider -- a local view control on trendCache only.
+// Deliberately does NOT call renderAll()/renderTrend(): those recompute from rows and
+// would wipe out whatever window the user just dragged to.
+(function(){
+  const startInput = document.getElementById('trendSliderStart');
+  const endInput = document.getElementById('trendSliderEnd');
+  const resetBtn = document.getElementById('trendSliderReset');
+  if(!startInput || !endInput) return;
+  startInput.addEventListener('input', applyTrendWindow);
+  endInput.addEventListener('input', applyTrendWindow);
+  if(resetBtn){
+    resetBtn.addEventListener('click', ()=>{
+      startInput.value = startInput.min;
+      endInput.value = endInput.max;
+      applyTrendWindow();
+    });
+  }
+})();
 const reportModal = document.getElementById('reportModal');
 const closeReportModalBtn = document.getElementById('closeReportModal');
 const evidenceModal = document.getElementById('evidenceModal');

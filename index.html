@@ -83,6 +83,18 @@
           </div>
           <p class="hint">Observations logged per day</p>
           <div class="chart-box"><canvas id="trendChart"></canvas></div>
+          <div class="trend-slider" id="trendSlider" style="display:none;">
+            <div class="trend-slider-track-wrap">
+              <div class="trend-slider-track"></div>
+              <div class="trend-slider-range" id="trendSliderRange"></div>
+              <input type="range" id="trendSliderStart" class="trend-range-input" min="0" max="0" value="0" step="1" aria-label="Trend range start">
+              <input type="range" id="trendSliderEnd" class="trend-range-input" min="0" max="0" value="0" step="1" aria-label="Trend range end">
+            </div>
+            <div class="trend-slider-foot">
+              <div class="trend-slider-labels"><span id="trendSliderStartLabel"></span>&nbsp;&ndash;&nbsp;<span id="trendSliderEndLabel"></span></div>
+              <button class="trend-slider-reset" id="trendSliderReset" type="button">Reset range</button>
+            </div>
+          </div>
           <p class="trend-note" id="trendNote" style="display:none;"></p>
         </div>
         <div class="t-panel">
