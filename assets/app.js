@@ -145,7 +145,7 @@ function openReportModal(row){
   const title = document.getElementById('reportModalTitle');
   if(!modal || !body || !title) return;
   const nature = natureOf(row.type);
-  const natureLabel = nature==='positive'?'Positive':'Near miss';
+  const natureLabel = nature==='positive'?'Positive':nature==='nearmiss'?'Near miss':'Unsafe';
   title.textContent = `${row.observer || 'Observation'} · ${row.location || 'Report'}`;
   const section = (key, titleText, bodyHtml, open=true) => `
     <section class="report-section ${open ? 'open' : 'collapsed'}" data-section="${key}">
@@ -1051,6 +1051,7 @@ document.getElementById('fSearch').addEventListener('input', e=>{
   searchDebounceTimer = setTimeout(()=>{ FILTERS.search = value; renderAll(); }, 200);
 });
 document.getElementById('clearFiltersBtn').addEventListener('click', ()=>{
+  clearTimeout(searchDebounceTimer);
   FILTERS.observer='All'; FILTERS.designation='All'; FILTERS.status='All'; FILTERS.search=''; FILTERS.category=null; FILTERS.location=null; FILTERS.quick=null; FILTERS._sev=null;
   document.getElementById('fSearch').value=''; syncDropdowns(); renderAll();
 });
