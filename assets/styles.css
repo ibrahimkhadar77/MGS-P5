@@ -136,12 +136,18 @@ svg.ic{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; 
 /* ---- KPI row ---- */
 .kpis{display:grid; grid-template-columns:repeat(6,1fr); gap:16px; margin-bottom:20px;}
 .kpi{
-  background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); padding:20px 20px 16px;
+  background:var(--card); border:1px solid var(--line); border-top:4px solid var(--grey); border-radius:var(--radius-lg); padding:20px 20px 16px;
   cursor:pointer; transition:transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
   box-shadow:var(--shadow-card); animation:fadeInUp .35s var(--ease) both;
 }
 .kpi:hover{transform:translateY(-4px); box-shadow:var(--shadow-hover);}
 .kpi.active{border-color:var(--ink); box-shadow:0 0 0 2px var(--ink), var(--shadow-hover);}
+.kpi.k-blue{border-top-color:var(--blue);}
+.kpi.k-green{border-top-color:var(--green);}
+.kpi.k-red{border-top-color:var(--red);}
+.kpi.k-olive{border-top-color:var(--olive);}
+.kpi.k-teal{border-top-color:var(--teal);}
+.kpi.k-navy{border-top-color:var(--navy);}
 .kpi.k-blue .kpi-ic{background:linear-gradient(135deg, var(--blue-soft), #DCE9FF); color:var(--blue);}
 .kpi.k-green .kpi-ic{background:linear-gradient(135deg, var(--green-soft), #D6FCEA); color:var(--green-dark);}
 .kpi.k-red .kpi-ic{background:linear-gradient(135deg, var(--red-soft), #FFE1E1); color:var(--red-dark);}
