@@ -488,8 +488,9 @@ function getFilteredRows(){
     }
     if(FILTERS.category && !rowMatchesCategory(r, FILTERS.category)) return false;
     if(FILTERS.location && normLoc(r.location)!==FILTERS.location) return false;
-    if(FILTERS.quick==='unsafe' && isPositive(r.type)) return false;
-    if(FILTERS.quick==='positive' && !isPositive(r.type)) return false;
+    if(FILTERS.quick==='unsafe' && natureOf(r.type)!=='unsafe') return false;
+    if(FILTERS.quick==='positive' && natureOf(r.type)!=='positive') return false;
+    if(FILTERS.quick==='nearmiss' && natureOf(r.type)!=='nearmiss') return false;
     if(FILTERS._sev){
       if(FILTERS._sev==='NA'){ if(r.severity!==null) return false; }
       else if(r.severity!==FILTERS._sev) return false;
@@ -502,7 +503,10 @@ function renderChips(){
   const chips = [];
   if(FILTERS.category) chips.push(['Category: '+FILTERS.category, ()=>{FILTERS.category=null; renderAll();}]);
   if(FILTERS.location) chips.push(['Location: '+FILTERS.location, ()=>{FILTERS.location=null; renderAll();}]);
-  if(FILTERS.quick) chips.push([FILTERS.quick==='unsafe'?'Quick: Unsafe only':'Quick: Positive only', ()=>{FILTERS.quick=null; renderAll();}]);
+  if(FILTERS.quick){
+    const qLabel = FILTERS.quick==='unsafe' ? 'Quick: Unsafe only' : FILTERS.quick==='nearmiss' ? 'Quick: Near miss only' : 'Quick: Positive only';
+    chips.push([qLabel, ()=>{FILTERS.quick=null; renderAll();}]);
+  }
   if(FILTERS._sev) chips.push(['Severity: '+(FILTERS._sev==='NA'?'N/A':'Sev '+FILTERS._sev), ()=>{FILTERS._sev=null; renderAll();}]);
   const row = document.getElementById('chipRow');
   row.innerHTML = chips.map((c,i)=>`<span class="chip-x">${c[0]}<button data-i="${i}">X</button></span>`).join('');
@@ -534,23 +538,27 @@ const ICONS = {
   doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
   shield: '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/>',
   warn: '<path d="M12 3l9 16H3L12 3z"/><path d="M12 10v4"/><path d="M12 17.5h.01"/>',
-  check: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5L16 9"/>'
+  check: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5L16 9"/>',
+  pulse: '<path d="M3 12h4l2.5 7L13 5l2.5 7H21"/>'
 };
 
 function renderKpis(rows){
   const total = ALL_ROWS.length;
   const shown = rows.length;
-  const positive = rows.filter(r=>isPositive(r.type)).length;
-  const unsafe = shown - positive;
+  const positive = rows.filter(r=>natureOf(r.type)==='positive').length;
+  const nearmiss = rows.filter(r=>natureOf(r.type)==='nearmiss').length;
+  const unsafe = shown - positive - nearmiss;
   const closed = rows.filter(r=>!isOpenStatus(r.status)).length;
   const closureRate = shown ? ((closed/shown)*100).toFixed(1) : '0.0';
   const pctPositive = shown ? Math.round(100*positive/shown) : 0;
   const pctUnsafe = shown ? Math.round(100*unsafe/shown) : 0;
+  const pctNearmiss = shown ? Math.round(100*nearmiss/shown) : 0;
 
   const cards = [
     {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, num:shown, lbl:'TOTAL REPORTS', cap:`${total} database entries`},
     {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations'},
     {cls:'k-red', quick:'unsafe', icon:ICONS.warn, badge:pctUnsafe+'%', num:unsafe, lbl:'UNSAFE ACTS', cap:'Corrective actions needed'},
+    {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse'},
     {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${closed} issues resolved`},
   ];
   document.getElementById('kpiRow').innerHTML = cards.map(c=>`
