@@ -1014,15 +1014,19 @@ function renderMonthly(rows){
     data:{
       labels: months.map(monthLabel),
       datasets:[
-        { label:'Positive', data: months.map(m=>buckets[m].positive), backgroundColor:'#10B981', borderRadius:4 },
-        { label:'Unsafe Act', data: months.map(m=>buckets[m].unsafeact), backgroundColor:'#EF4444', borderRadius:4 },
-        { label:'Unsafe Condition', data: months.map(m=>buckets[m].unsafecondition), backgroundColor:'#7C3AED', borderRadius:4 },
-        { label:'Near miss', data: months.map(m=>buckets[m].nearmiss), backgroundColor:'#F59E0B', borderRadius:4 },
-        { label:'Other', data: months.map(m=>buckets[m].unsafeother), backgroundColor:'#94A3B8', borderRadius:4 },
+        // Only the topmost segment in each stack ("Other") gets a rounded cap; the rest
+        // stay flat so adjoining segments sit flush against each other instead of leaving
+        // small rounded-corner gaps between colors.
+        { label:'Positive', data: months.map(m=>buckets[m].positive), backgroundColor:'#10B981', hoverBackgroundColor:'#0DA271', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+        { label:'Unsafe Act', data: months.map(m=>buckets[m].unsafeact), backgroundColor:'#EF4444', hoverBackgroundColor:'#E23636', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+        { label:'Unsafe Condition', data: months.map(m=>buckets[m].unsafecondition), backgroundColor:'#7C3AED', hoverBackgroundColor:'#6D28D9', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+        { label:'Near miss', data: months.map(m=>buckets[m].nearmiss), backgroundColor:'#F59E0B', hoverBackgroundColor:'#E08E0B', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+        { label:'Other', data: months.map(m=>buckets[m].unsafeother), backgroundColor:'#94A3B8', hoverBackgroundColor:'#84919F', borderRadius:{topLeft:6,topRight:6,bottomLeft:0,bottomRight:0}, barPercentage:0.55, categoryPercentage:0.7 },
       ]
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      animation:{duration:600, easing:'easeOutQuart'},
       plugins:{
         legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:'#475569', boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
         tooltip:{ backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
