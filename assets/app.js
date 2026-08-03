@@ -98,6 +98,11 @@ function normalizeDesignation(raw){
 const CATEGORY_ALIASES = {
   'vehicle/forklift operation': 'Vehicle/Equipment Operation',
   'heat stress': 'Heat Stress',
+  'access slip trip': 'Slips, Trips & Falls',
+  'slips and trips': 'Slips, Trips & Falls',
+  'slip and trips': 'Slips, Trips & Falls',
+  'safe distance/line of fire': 'Line of Fire',
+  'welfare facilities': 'Welfare Facility',
 };
 function normalizeCategoryString(raw){
   return (raw||'').split(',').map(c=>c.trim()).filter(Boolean).map(c=>{
@@ -129,6 +134,9 @@ const KNOWN_CATEGORIES = new Set([
   'barrication & signages',
   'procedure violation/lack of training', // legacy pre-split label, see CATEGORY_ALIASES note
   'heat stress',
+  'slips, trips & falls',
+  'line of fire',
+  'welfare facility',
 ]);
 const CATEGORY_OTHER_LABEL = 'Other (not on category list)';
 function isKnownCategory(c){ return KNOWN_CATEGORIES.has((c||'').trim().toLowerCase()); }
