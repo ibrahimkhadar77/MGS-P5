@@ -441,6 +441,14 @@ function openPanelModal(targetId){
     const sourceCanvas = panel.querySelectorAll('canvas')[index];
     copyCanvasBitmap(sourceCanvas, canvas);
   });
+  // This is a static snapshot (cloned nodes + a bitmap copy of the chart canvas), so none
+  // of the original click-to-filter interactions carry over. Swap any "click to filter/jump"
+  // hint text for a neutral note and strip pointer affordances so it doesn't look clickable.
+  clone.querySelectorAll('.hint').forEach(h=>{ h.textContent = 'Static snapshot — close this to interact with the panel.'; });
+  clone.querySelectorAll('.leg-row, .rep-row, .hs-row, .aging-row, [data-loc], [data-name]').forEach(el=>{
+    el.style.cursor = 'default';
+    el.style.pointerEvents = 'none';
+  });
 
   const headText = panel.querySelector('.panel-head-main')?.textContent || panel.querySelector('.panel-head')?.textContent || 'Report view';
   title.textContent = headText.trim();
@@ -709,7 +717,7 @@ function renderChips(){
   }
   if(FILTERS._sev) chips.push(['Severity: '+(FILTERS._sev==='NA'?'N/A':'Sev '+FILTERS._sev), ()=>{FILTERS._sev=null; renderAll();}]);
   const row = document.getElementById('chipRow');
-  row.innerHTML = chips.map((c,i)=>`<span class="chip-x">${c[0]}<button data-i="${i}">X</button></span>`).join('');
+  row.innerHTML = chips.map((c,i)=>`<span class="chip-x">${escapeHtml(c[0])}<button data-i="${i}">X</button></span>`).join('');
   Array.from(row.querySelectorAll('button')).forEach((btn,i)=>btn.addEventListener('click', chips[i][1]));
 }
 
@@ -878,9 +886,9 @@ function renderTopReporters(rows){
   rows.forEach(r=>{ counts[r.observer]=(counts[r.observer]||0)+1; });
   const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
   document.getElementById('topReporters').innerHTML = sorted.map((s,i)=>`
-    <div class="rep-row ${FILTERS.observer===s[0]?'active':''}" data-name="${s[0]}">
+    <div class="rep-row ${FILTERS.observer===s[0]?'active':''}" data-name="${escapeHtml(s[0])}">
       <div class="rep-rank ${i===0?'gold':''}">${i+1}</div>
-      <div class="rep-name">${s[0]}</div>
+      <div class="rep-name">${escapeHtml(s[0])}</div>
       <div class="rep-count">${s[1]} reports</div>
     </div>`).join('');
   Array.from(document.querySelectorAll('#topReporters .rep-row')).forEach(el=>{
@@ -913,8 +921,8 @@ function renderHotspots(rows){
   document.getElementById('hotspotList').innerHTML = sorted.map(([loc, items])=>{
     const maxSev = Math.max(...items.map(r=>r.severity||1));
     const pct = Math.round(100*items.length/maxCount);
-    return `<div class="hs-row ${FILTERS.location===loc?'active':''}" data-loc="${loc}">
-      <span class="hs-km" title="${loc}">${loc}</span>
+    return `<div class="hs-row ${FILTERS.location===loc?'active':''}" data-loc="${escapeHtml(loc)}">
+      <span class="hs-km" title="${escapeHtml(loc)}">${escapeHtml(loc)}</span>
       <span class="hs-bar-track"><span class="hs-bar-fill" style="width:${pct}%; background:${sevColor(maxSev)}"></span></span>
       <span class="hs-count">${items.length}</span>
     </div>`;
@@ -995,9 +1003,9 @@ function renderRateAndAging(rows){
   list.innerHTML = openRows.slice(0,25).map(r=>{
     const days = r.days===null ? '—' : r.days+'d';
     const cls = r.days>=30 ? 'hot' : r.days>=14 ? 'warm' : '';
-    return `<div class="aging-row" data-loc="${normLoc(r.location)}">
+    return `<div class="aging-row" data-loc="${escapeHtml(normLoc(r.location))}">
       <span class="aging-days ${cls}">${days}</span>
-      <span class="aging-meta"><b>${r.location||'—'}</b> · ${r.observer||'—'} · ${(r.what||'').slice(0,50)}</span>
+      <span class="aging-meta"><b>${escapeHtml(r.location||'—')}</b> · ${escapeHtml(r.observer||'—')} · ${escapeHtml((r.what||'').slice(0,50))}</span>
     </div>`;
   }).join('');
   Array.from(list.querySelectorAll('.aging-row')).forEach(el=>{
@@ -1050,13 +1058,13 @@ function renderTable(rows){
     const dn = detailedNature(r.type);
     const natureLabel = {positive:'POSITIVE', nearmiss:'NEAR MISS', unsafeact:'UNSAFE ACT', unsafecondition:'UNSAFE CONDITION'}[dn] || 'UNSAFE';
     const open = isOpenStatus(r.status);
-    const tags = (r.category||'').split(',').map(s=>s.trim()).filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join('');
+    const tags = (r.category||'').split(',').map(s=>s.trim()).filter(Boolean).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('');
     return `
     <tr class="main-row" data-i="${rowIndex}">
       <td class="km-cell">${(r.dateObs||'').split(' ')[0]||'—'}</td>
-      <td class="person"><b>${r.observer}</b><span>${r.designation}</span></td>
+      <td class="person"><b>${escapeHtml(r.observer)}</b><span>${escapeHtml(r.designation)}</span></td>
       <td><span class="pill ${pillClassFor(dn)}">${natureLabel}</span></td>
-      <td class="findings-cell">${(r.what||'').slice(0,90)}${(r.what||'').length>90?'…':''}</td>
+      <td class="findings-cell">${escapeHtml((r.what||'').slice(0,90))}${(r.what||'').length>90?'…':''}</td>
       <td><span class="pill ${open?'open':'closed'}">${open?'OPEN':'CLOSED'}</span></td>
       <td class="action-cell">
         <button class="expand-btn" data-i="${rowIndex}" title="Expand details">▾</button>
@@ -1065,14 +1073,14 @@ function renderTable(rows){
     </tr>
     <tr class="detail-row" id="detail-${rowIndex}" style="display:none;"><td colspan="6">
       <div class="detail-grid">
-        <p><b>Location</b>${r.location||'—'}</p>
+        <p><b>Location</b>${escapeHtml(r.location||'—')}</p>
         <p><b>Severity</b>${r.severity ? 'Level '+r.severity+' of 5' : 'Not specified'}</p>
         <p><b>Category tags</b>${tags||'—'}</p>
-        <p><b>Immediate action</b>${r.immediateAction||'—'}</p>
-        <p><b>Corrected on the spot</b>${r.correctedOnSpot||'—'}</p>
+        <p><b>Immediate action</b>${escapeHtml(r.immediateAction||'—')}</p>
+        <p><b>Corrected on the spot</b>${escapeHtml(r.correctedOnSpot||'—')}</p>
         <p><b>Photo / Evidence / Closeout</b>${renderEvidenceLinksHtml(r.evidenceUrls)}</p>
-        <p><b>Responsible person</b>${r.responsible||'—'}</p>
-        <p><b>Corrective action taken</b>${r.correctiveAction||'—'}</p>
+        <p><b>Responsible person</b>${escapeHtml(r.responsible||'—')}</p>
+        <p><b>Corrective action taken</b>${escapeHtml(r.correctiveAction||'—')}</p>
       </div>
     </td></tr>`;
   }).join('');
@@ -1096,15 +1104,6 @@ function renderTable(rows){
   Array.from(document.querySelectorAll('tr.main-row')).forEach(tr=>{
     tr.addEventListener('click', ()=>{ tr.querySelector('.expand-btn').click(); });
   });
-  Array.from(document.querySelectorAll('.panel-maximize-btn')).forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      openPanelModal(btn.getAttribute('data-panel-target'));
-    });
-  });
-
-  document.getElementById('closePanelModal')?.addEventListener('click', closePanelModal);
-  document.getElementById('panelModal')?.addEventListener('click', (e)=>{ if(e.target.id === 'panelModal') closePanelModal(); });
 }
 
 /* ============================================================
@@ -1220,8 +1219,8 @@ function syncDropdowns(){
 function populateDropdowns(){
   const observers = Array.from(new Set(ALL_ROWS.map(r=>r.observer))).sort();
   const designations = Array.from(new Set(ALL_ROWS.map(r=>r.designation))).sort();
-  document.getElementById('fObserver').innerHTML = '<option>All</option>' + observers.map(o=>`<option>${o}</option>`).join('');
-  document.getElementById('fDesignation').innerHTML = '<option>All</option>' + designations.map(d=>`<option>${d}</option>`).join('');
+  document.getElementById('fObserver').innerHTML = '<option>All</option>' + observers.map(o=>`<option>${escapeHtml(o)}</option>`).join('');
+  document.getElementById('fDesignation').innerHTML = '<option>All</option>' + designations.map(d=>`<option>${escapeHtml(d)}</option>`).join('');
 }
 document.getElementById('fObserver').addEventListener('change', e=>{ FILTERS.observer = e.target.value; renderAll(); });
 document.getElementById('fDesignation').addEventListener('change', e=>{ FILTERS.designation = e.target.value; renderAll(); });
@@ -1263,10 +1262,23 @@ document.addEventListener('click', (event)=>{
   const url = btn.getAttribute('data-url');
   if(url) openEvidenceModal(url);
 });
+// .panel-maximize-btn buttons, and the panel modal's own close controls, are static
+// elements defined once in index.html (not regenerated per render), so they're bound
+// here a single time rather than inside renderTable (which re-runs on every filter change).
+Array.from(document.querySelectorAll('.panel-maximize-btn')).forEach(btn=>{
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    openPanelModal(btn.getAttribute('data-panel-target'));
+  });
+});
+document.getElementById('closePanelModal')?.addEventListener('click', closePanelModal);
+document.getElementById('panelModal')?.addEventListener('click', (e)=>{ if(e.target.id === 'panelModal') closePanelModal(); });
+
 document.addEventListener('keydown', (event)=>{
   if(event.key === 'Escape'){
     closeReportModal();
     closeEvidenceModal();
+    closePanelModal();
   }
 });
 
