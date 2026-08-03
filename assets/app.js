@@ -55,9 +55,15 @@ const DESIGNATION_ALIASES = {
   'hse officer': 'HSE Officer',
   'hseo': 'HSE Officer',
   'safety officer': 'HSE Officer',
+  'hsse officer': 'HSE Officer',
   'truck driver': 'Truck Driver',
   'bus driver': 'Bus Driver',
   'civil site supervisor': 'Civil Site Supervisor',
+  'formen': 'Foreman',
+  'foreman': 'Foreman',
+  'helper': 'Helper',
+  'jcb operator': 'JCB Operator',
+  'sms coordinator': 'SMS Coordinator',
 };
 const DESIGNATION_DENYLIST = new Set([
   'noor zaman',
@@ -65,11 +71,15 @@ const DESIGNATION_DENYLIST = new Set([
   'fire extinguisher',
   'safety observation',
   'take the shelter above the dana',
+  'observed that during pipe stringing workers were not maintained safe distance. its leads to accident',
 ]);
 function normalizeDesignation(raw){
   const trimmed = (raw||'').trim();
   if(!trimmed) return 'N/A';
-  const key = trimmed.toLowerCase().replace(/\s+/g,' ');
+  // Normalize hyphens/underscores to spaces too, so variants like "HSE-OFFICER" match
+  // the same alias as "HSE OFFICER" without needing a separate map entry for every
+  // punctuation style someone happens to type.
+  const key = trimmed.toLowerCase().replace(/[-_]+/g,' ').replace(/\s+/g,' ').trim();
   if(DESIGNATION_ALIASES[key]) return DESIGNATION_ALIASES[key];
   if(DESIGNATION_DENYLIST.has(key)) return 'Other / Unclear';
   const wordCount = trimmed.split(/\s+/).length;
