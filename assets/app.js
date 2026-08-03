@@ -804,8 +804,8 @@ function renderMonthly(rows){
   rows.forEach(r=>{
     const d = parseDate(r.dateObs); if(!d) return;
     const k = monthKey(d);
-    if(!buckets[k]) buckets[k] = {positive:0, unsafe:0, nearmiss:0};
-    buckets[k][natureOf(r.type)]++;
+    if(!buckets[k]) buckets[k] = {positive:0, unsafeact:0, unsafecondition:0, unsafeother:0, nearmiss:0};
+    buckets[k][detailedNature(r.type)]++;
   });
   const months = Object.keys(buckets).sort();
   const ctx = document.getElementById('monthlyChart');
@@ -816,8 +816,10 @@ function renderMonthly(rows){
       labels: months.map(monthLabel),
       datasets:[
         { label:'Positive', data: months.map(m=>buckets[m].positive), backgroundColor:'#1E8E5A', borderRadius:3 },
-        { label:'Unsafe', data: months.map(m=>buckets[m].unsafe), backgroundColor:'#D64545', borderRadius:3 },
+        { label:'Unsafe Act', data: months.map(m=>buckets[m].unsafeact), backgroundColor:'#D64545', borderRadius:3 },
+        { label:'Unsafe Condition', data: months.map(m=>buckets[m].unsafecondition), backgroundColor:'#1F3A5F', borderRadius:3 },
         { label:'Near miss', data: months.map(m=>buckets[m].nearmiss), backgroundColor:'#A98A1E', borderRadius:3 },
+        { label:'Other', data: months.map(m=>buckets[m].unsafeother), backgroundColor:'#8A8F98', borderRadius:3 },
       ]
     },
     options:{
