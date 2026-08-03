@@ -10,7 +10,7 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdqH02gUYfWAcH
 const DATA_SOURCE_MODE = "apps-script"; // apps-script | direct-sheet | auto
 const REFRESH_MS = 300 * 60 * 1000;
 
-const PALETTE = ['#1E8E5A','#2F6FE0','#A98A1E','#1F3A5F','#6C4FD1','#D64545','#1E9E96','#8A8F98','#C9862C','#4B6F44'];
+const PALETTE = ['#1E8E5A','#2F6FE0','#A98A1E','#1F3A5F','#6C4FD1','#D64545','#1E9E96','#8A8F98','#C9862C','#4B6F44','#B5566B','#5E8AA6','#9C6B30','#4A4E69'];
 const LOG_PAGE_SIZE = 25;
 
 /* ============================================================
@@ -86,6 +86,23 @@ function normalizeDesignation(raw){
   const looksLikeSentence = wordCount > 4 || /[.,!?]/.test(trimmed);
   if(looksLikeSentence) return 'Other / Unclear';
   return trimmed.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
+// The "Category of Unsafe Act/Condition/Near Miss" field on the form got a few options
+// renamed at some point, so historical rows and new rows can carry different text for
+// what's really the same category. Only mapping the rename that's unambiguous -- "Vehicle
+// /Forklift Operation" was broadened to "Vehicle/Equipment Operation", same meaning, safe
+// to merge. NOT mapping "Procedure Violation/Lack of Training", which the form split into
+// two separate new options ("Procedure Violation" and "Training") -- there's no way to know
+// which one each old entry meant, so it's left as its own (naturally fading) legacy label
+// rather than guessed into one bucket.
+const CATEGORY_ALIASES = {
+  'vehicle/forklift operation': 'Vehicle/Equipment Operation',
+};
+function normalizeCategoryString(raw){
+  return (raw||'').split(',').map(c=>c.trim()).filter(Boolean).map(c=>{
+    const key = c.toLowerCase().replace(/\s+/g,' ');
+    return CATEGORY_ALIASES[key] || c;
+  }).join(', ');
 }
 function natureOf(type){
   const t=(type||'').toLowerCase();
@@ -396,7 +413,7 @@ function parseRows(csvText){
       observer: find("observer's name") || find('observer name') || 'Unknown',
       type: find('type of observation'),
       what: find('what specifically'),
-      category: find('category of unsafe'),
+      category: normalizeCategoryString(find('category of unsafe')),
       severity: (()=>{ const n=parseInt(find('severity potential')); return isNaN(n)?null:Math.min(Math.max(n,1),5); })(),
       immediateAction: find('immediate action'),
       correctedOnSpot: find('corrected on the spot'),
@@ -426,7 +443,7 @@ function parseRowsFromObjects(flat){
       observer: find("observer's name") || find('observer name') || 'Unknown',
       type: find('type of observation'),
       what: find('what specifically'),
-      category: find('category of unsafe'),
+      category: normalizeCategoryString(find('category of unsafe')),
       severity: Number.isNaN(sev) ? null : Math.min(Math.max(sev,1),5),
       immediateAction: find('immediate action'),
       correctedOnSpot: find('corrected on the spot'),
@@ -706,7 +723,7 @@ function renderTrend(rows){
 function renderCategoryDonut(rows){
   const counts = {};
   rows.forEach(r=> (r.category||'').split(',').forEach(c=>{ c=c.trim(); if(c) counts[c]=(counts[c]||0)+1; }));
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   const labels = sorted.map(s=>s[0]);
   const data = sorted.map(s=>s[1]);
   const colors = labels.map((l,i)=> PALETTE[i % PALETTE.length]);
