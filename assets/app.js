@@ -54,7 +54,7 @@ function normLoc(loc){ return (loc||'').replace(/\(.*?\)/g,'').trim().replace(/\
 const DESIGNATION_ALIASES = {
   'hse officer': 'HSE Officer',
   'hseo': 'HSE Officer',
-  'safety officer': 'Safety Officer',
+  'safety officer': 'HSE Officer',
   'truck driver': 'Truck Driver',
   'bus driver': 'Bus Driver',
   'civil site supervisor': 'Civil Site Supervisor',
