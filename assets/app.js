@@ -44,6 +44,39 @@ function formatTrendTitle(date){
   return new Intl.DateTimeFormat('en-US', {weekday:'long', year:'numeric', month:'short', day:'2-digit'}).format(date);
 }
 function normLoc(loc){ return (loc||'').replace(/\(.*?\)/g,'').trim().replace(/\s+/g,' ').toUpperCase(); }
+
+// Designator field in the source form is free text, so it collects a mix of real
+// job titles, case/abbreviation variants of the same title, and outright mistakes
+// (names, sentences, unrelated words typed into the wrong field). This normalizes
+// known variants to one canonical label and buckets clearly-not-a-title entries
+// into "Other / Unclear" so charts/filters aren't cluttered -- without discarding
+// the original text, which stays available on the row as designationRaw.
+const DESIGNATION_ALIASES = {
+  'hse officer': 'HSE Officer',
+  'hseo': 'HSE Officer',
+  'safety officer': 'Safety Officer',
+  'truck driver': 'Truck Driver',
+  'bus driver': 'Bus Driver',
+  'civil site supervisor': 'Civil Site Supervisor',
+};
+const DESIGNATION_DENYLIST = new Set([
+  'noor zaman',
+  'deviation from ptw and not follow safety protocols',
+  'fire extinguisher',
+  'safety observation',
+  'take the shelter above the dana',
+]);
+function normalizeDesignation(raw){
+  const trimmed = (raw||'').trim();
+  if(!trimmed) return 'N/A';
+  const key = trimmed.toLowerCase().replace(/\s+/g,' ');
+  if(DESIGNATION_ALIASES[key]) return DESIGNATION_ALIASES[key];
+  if(DESIGNATION_DENYLIST.has(key)) return 'Other / Unclear';
+  const wordCount = trimmed.split(/\s+/).length;
+  const looksLikeSentence = wordCount > 4 || /[.,!?]/.test(trimmed);
+  if(looksLikeSentence) return 'Other / Unclear';
+  return trimmed.replace(/\w\S*/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
 function natureOf(type){
   const t=(type||'').toLowerCase();
   if(t.includes('positive')) return 'positive';
@@ -137,7 +170,7 @@ function openReportModal(row){
     ${section('summary', 'Summary', `
       <div class="detail-grid modal-grid">
         <p><b>Observer</b>${escapeHtml(row.observer || '—')}</p>
-        <p><b>Designation</b>${escapeHtml(row.designation || '—')}</p>
+        <p><b>Designation</b>${escapeHtml(row.designation || '—')}${row.designation==='Other / Unclear' && row.designationRaw ? ' <span class="raw-note">(as entered: '+escapeHtml(row.designationRaw)+')</span>' : ''}</p>
         <p><b>Location</b>${escapeHtml(row.location || '—')}</p>
         <p><b>Responsible person</b>${escapeHtml(row.responsible || '—')}</p>
       </div>
@@ -334,7 +367,8 @@ function parseRows(csvText){
       evidenceUrls: extractEvidenceUrls(find('photo or evidence/closeout')),
       responsible: find('responsible person'),
       correctiveAction: find('corrective action taken'),
-      designation: find('observer designation') || 'N/A',
+      designationRaw: find('observer designation'),
+      designation: normalizeDesignation(find('observer designation')),
       status: find('status - open') || find('status') || 'Closed',
     };
   }).filter(r=>r.location);
@@ -363,7 +397,8 @@ function parseRowsFromObjects(flat){
       evidenceUrls: extractEvidenceUrls(find('photo or evidence/closeout')),
       responsible: find('responsible person'),
       correctiveAction: find('corrective action taken'),
-      designation: find('observer designation') || 'N/A',
+      designationRaw: find('observer designation'),
+      designation: normalizeDesignation(find('observer designation')),
       status: find('status - open') || find('status') || 'Closed',
     };
   }).filter(r=>r.location);
