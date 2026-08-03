@@ -574,6 +574,24 @@ function renderKpis(rows){
   });
 }
 
+// Finds where the real reporting cadence begins by skipping a small handful of
+// leading days that sit isolated (a large date gap) far before the main cluster of
+// activity -- e.g. a single mis-dated entry shouldn't stretch the whole axis and
+// flatten the real trend. Only looks within the first ~3% of days, so it can never
+// eat into genuine gradual ramp-up data.
+function pickTrendStartIndex(days){
+  const n = days.length;
+  if(n < 8) return 0;
+  const GAP_THRESHOLD_DAYS = 21;
+  const maxLeadIndex = Math.max(2, Math.ceil(n * 0.03));
+  let cut = 0;
+  for(let i=0; i<Math.min(maxLeadIndex, n-1); i++){
+    const gap = (new Date(days[i+1]) - new Date(days[i])) / 86400000;
+    if(gap > GAP_THRESHOLD_DAYS) cut = i+1;
+  }
+  return cut;
+}
+
 function renderTrend(rows){
   const byDay = new Map();
   rows.forEach(r=>{
@@ -582,11 +600,28 @@ function renderTrend(rows){
     const key = d.toISOString().slice(0,10);
     byDay.set(key, (byDay.get(key) || 0) + 1);
   });
-  const days = Array.from(byDay.keys()).sort();
+  const allDays = Array.from(byDay.keys()).sort();
+  const cut = pickTrendStartIndex(allDays);
+  const excludedDays = allDays.slice(0, cut);
+  const days = allDays.length ? allDays.slice(cut) : allDays;
+
   const labels = days.map(day => formatTrendLabel(new Date(day + 'T00:00:00')));
   const titles = days.map(day => formatTrendTitle(new Date(day + 'T00:00:00')));
   trendYMax = Math.max(1, ...days.map(d=>byDay.get(d) || 0));
   drawLineChart('trendChart', labels, days.map(d=>byDay.get(d)), titles);
+
+  const note = document.getElementById('trendNote');
+  if(note){
+    if(excludedDays.length && days.length){
+      const excludedCount = excludedDays.reduce((sum,d)=>sum+(byDay.get(d)||0),0);
+      const startLabel = formatTrendTitle(new Date(days[0] + 'T00:00:00'));
+      note.textContent = `Showing trend from ${startLabel} onward — ${excludedCount} earlier report(s) fall well outside this range and are excluded from the chart to keep it readable. They're still counted everywhere else and visible in the Observation Log.`;
+      note.style.display = 'block';
+    } else {
+      note.textContent = '';
+      note.style.display = 'none';
+    }
+  }
 }
 
 function renderCategoryDonut(rows){
@@ -737,15 +772,15 @@ function renderRateAndAging(rows){
 
   const list = document.getElementById('agingList');
   if(!openRows.length){
-    list.innerHTML = `<div class="aging-empty">No open items in the current filter â€” nothing overdue.</div>`;
+    list.innerHTML = `<div class="aging-empty">No open items in the current filter — nothing overdue.</div>`;
     return;
   }
   list.innerHTML = openRows.slice(0,25).map(r=>{
-    const days = r.days===null ? 'â€”' : r.days+'d';
+    const days = r.days===null ? '—' : r.days+'d';
     const cls = r.days>=30 ? 'hot' : r.days>=14 ? 'warm' : '';
     return `<div class="aging-row" data-loc="${normLoc(r.location)}">
       <span class="aging-days ${cls}">${days}</span>
-      <span class="aging-meta"><b>${r.location||'â€”'}</b> Â· ${r.observer||'â€”'} Â· ${(r.what||'').slice(0,50)}</span>
+      <span class="aging-meta"><b>${r.location||'—'}</b> · ${r.observer||'—'} · ${(r.what||'').slice(0,50)}</span>
     </div>`;
   }).join('');
   Array.from(list.querySelectorAll('.aging-row')).forEach(el=>{
@@ -801,10 +836,10 @@ function renderTable(rows){
     const tags = (r.category||'').split(',').map(s=>s.trim()).filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join('');
     return `
     <tr class="main-row" data-i="${rowIndex}">
-      <td class="km-cell">${(r.dateObs||'').split(' ')[0]||'â€”'}</td>
+      <td class="km-cell">${(r.dateObs||'').split(' ')[0]||'—'}</td>
       <td class="person"><b>${r.observer}</b><span>${r.designation}</span></td>
       <td><span class="pill ${nature}">${natureLabel}</span></td>
-      <td class="findings-cell">${(r.what||'').slice(0,90)}${(r.what||'').length>90?'â€¦':''}</td>
+      <td class="findings-cell">${(r.what||'').slice(0,90)}${(r.what||'').length>90?'…':''}</td>
       <td><span class="pill ${open?'open':'closed'}">${open?'OPEN':'CLOSED'}</span></td>
       <td class="action-cell">
         <button class="expand-btn" data-i="${rowIndex}" title="Expand details">▾</button>
@@ -813,14 +848,14 @@ function renderTable(rows){
     </tr>
     <tr class="detail-row" id="detail-${rowIndex}" style="display:none;"><td colspan="6">
       <div class="detail-grid">
-        <p><b>Location</b>${r.location||'â€”'}</p>
+        <p><b>Location</b>${r.location||'—'}</p>
         <p><b>Severity</b>${r.severity ? 'Level '+r.severity+' of 5' : 'Not specified'}</p>
-        <p><b>Category tags</b>${tags||'â€”'}</p>
-        <p><b>Immediate action</b>${r.immediateAction||'â€”'}</p>
-        <p><b>Corrected on the spot</b>${r.correctedOnSpot||'â€”'}</p>
+        <p><b>Category tags</b>${tags||'—'}</p>
+        <p><b>Immediate action</b>${r.immediateAction||'—'}</p>
+        <p><b>Corrected on the spot</b>${r.correctedOnSpot||'—'}</p>
         <p><b>Photo / Evidence / Closeout</b>${renderEvidenceLinksHtml(r.evidenceUrls)}</p>
-        <p><b>Responsible person</b>${r.responsible||'â€”'}</p>
-        <p><b>Corrective action taken</b>${r.correctiveAction||'â€”'}</p>
+        <p><b>Responsible person</b>${r.responsible||'—'}</p>
+        <p><b>Corrective action taken</b>${r.correctiveAction||'—'}</p>
       </div>
     </td></tr>`;
   }).join('');
@@ -974,7 +1009,12 @@ function populateDropdowns(){
 document.getElementById('fObserver').addEventListener('change', e=>{ FILTERS.observer = e.target.value; renderAll(); });
 document.getElementById('fDesignation').addEventListener('change', e=>{ FILTERS.designation = e.target.value; renderAll(); });
 document.getElementById('fStatus').addEventListener('change', e=>{ FILTERS.status = e.target.value; renderAll(); });
-document.getElementById('fSearch').addEventListener('input', e=>{ FILTERS.search = e.target.value; renderAll(); });
+let searchDebounceTimer = null;
+document.getElementById('fSearch').addEventListener('input', e=>{
+  const value = e.target.value;
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(()=>{ FILTERS.search = value; renderAll(); }, 200);
+});
 document.getElementById('clearFiltersBtn').addEventListener('click', ()=>{
   FILTERS.observer='All'; FILTERS.designation='All'; FILTERS.status='All'; FILTERS.search=''; FILTERS.category=null; FILTERS.location=null; FILTERS.quick=null; FILTERS._sev=null;
   document.getElementById('fSearch').value=''; syncDropdowns(); renderAll();

@@ -70,6 +70,7 @@
           </div>
           <p class="hint">Observations logged per day</p>
           <div class="chart-box"><canvas id="trendChart"></canvas></div>
+          <p class="trend-note" id="trendNote" style="display:none;"></p>
         </div>
         <div class="t-panel">
           <div class="panel-head">
@@ -115,6 +116,14 @@
           </div>
           <p class="hint">Click a bar to filter</p>
           <div class="chart-box"><canvas id="sevChart"></canvas></div>
+          <div class="sev-legend">
+            <span class="sev-leg-item"><span class="sev-dot" style="background:#1E8E5A"></span>1 Low</span>
+            <span class="sev-leg-item"><span class="sev-dot" style="background:#A98A1E"></span>2</span>
+            <span class="sev-leg-item"><span class="sev-dot" style="background:#D64545"></span>3</span>
+            <span class="sev-leg-item"><span class="sev-dot" style="background:#B23A2E"></span>4</span>
+            <span class="sev-leg-item"><span class="sev-dot" style="background:#7A2E24"></span>5 Critical</span>
+            <span class="sev-leg-item"><span class="sev-dot" style="background:#B9BEC6"></span>N/A</span>
+          </div>
         </div>
         <div class="t-panel">
           <div class="panel-head">
