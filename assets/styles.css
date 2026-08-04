@@ -45,8 +45,8 @@ svg.ic{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; 
   content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
   background:linear-gradient(180deg, var(--blue), var(--navy));
 }
-.hero-left{display:flex; align-items:center; gap:14px;}
-.hero-logo{height:42px; width:auto; flex-shrink:0;}
+.hero-left{display:flex; align-items:center; gap:10px;}
+.hero-logo{height:35px; width:auto; flex-shrink:0; margin-top:3px;}
 .hero-right{display:flex; align-items:center; gap:10px;}
 .hero-company{
   font-family:'Inter',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:.14em;
@@ -528,7 +528,7 @@ footer{
   .wrap{padding:14px 12px 22px;}
   .hero{padding:14px 16px;}
   .hero h1{font-size:20px;}
-  .hero-logo{height:30px;}
+  .hero-logo{height:25px;}
   .hero-company{font-size:10px;}
   .hero-kicker{font-size:10px;}
   .header-meta{display:none;}
