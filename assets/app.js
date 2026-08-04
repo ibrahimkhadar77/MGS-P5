@@ -1371,6 +1371,114 @@ document.getElementById('clearFiltersBtn').addEventListener('click', ()=>{
   document.getElementById('fSearch').value=''; syncDropdowns(); renderAll();
 });
 
+/* ============================================================
+   EXPORT (CSV / print-to-PDF) -- reads getFilteredRows(), never writes to
+   ALL_ROWS/FILTERS/any chart state. Purely takes what's already on screen
+   and serializes it; no calculations beyond the same summary counts renderKpis()
+   already performs.
+   ============================================================ */
+function csvCell(value){
+  const s = String(value===null || value===undefined ? '' : value);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function currentFilterSummary(){
+  const parts = [];
+  if(FILTERS.observer && FILTERS.observer!=='All') parts.push('Observer: '+FILTERS.observer);
+  if(FILTERS.designation && FILTERS.designation!=='All') parts.push('Designation: '+FILTERS.designation);
+  if(FILTERS.status && FILTERS.status!=='All') parts.push('Status: '+FILTERS.status);
+  if(FILTERS.search) parts.push('Search: "'+FILTERS.search+'"');
+  if(FILTERS.category) parts.push('Category: '+FILTERS.category);
+  if(FILTERS.location) parts.push('Location: '+FILTERS.location);
+  if(FILTERS.quick) parts.push('Quick filter: '+FILTERS.quick);
+  if(FILTERS._sev) parts.push('Severity: '+(FILTERS._sev==='NA'?'N/A':FILTERS._sev));
+  return parts.length ? parts.join(' | ') : 'No filters applied (showing all observations)';
+}
+function exportToCsv(){
+  const rows = getFilteredRows();
+  const headers = ['Date','Observer','Designation','Nature','Category','Location','Severity','Status','Findings','Immediate Action','Corrected On Spot','Responsible Person','Corrective Action'];
+  const natureLabel = {positive:'Positive', nearmiss:'Near miss', unsafeact:'Unsafe act', unsafecondition:'Unsafe condition'};
+  const lines = [headers.map(csvCell).join(',')];
+  rows.forEach(r=>{
+    const dn = detailedNature(r.type);
+    lines.push([
+      r.dateObs, r.observer, r.designation, natureLabel[dn] || 'Unsafe', r.category, r.location,
+      r.severity===null||r.severity===undefined ? 'N/A' : r.severity, r.status, r.what,
+      r.immediateAction, r.correctedOnSpot, r.responsible, r.correctiveAction
+    ].map(csvCell).join(','));
+  });
+  const blob = new Blob(['\uFEFF'+lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hse-observations-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function exportToPdf(){
+  const rows = getFilteredRows();
+  const natureLabel = {positive:'Positive', nearmiss:'Near miss', unsafeact:'Unsafe act', unsafecondition:'Unsafe condition'};
+  const counts = {positive:0, unsafeact:0, unsafecondition:0, nearmiss:0};
+  rows.forEach(r=>{ const dn = detailedNature(r.type); if(counts[dn]!==undefined) counts[dn]++; });
+  const closed = rows.filter(r=>!isOpenStatus(r.status)).length;
+  const closureRate = rows.length ? Math.round(100*closed/rows.length) : 0;
+  const logoUrl = new URL('assets/logo.png', window.location.href).href;
+
+  const tableRows = rows.map(r=>{
+    const dn = detailedNature(r.type);
+    return '<tr>'
+      + '<td>' + escapeHtml((r.dateObs||'').split(' ')[0]) + '</td>'
+      + '<td>' + escapeHtml(r.observer) + '<br><span class="muted">' + escapeHtml(r.designation) + '</span></td>'
+      + '<td>' + escapeHtml(natureLabel[dn] || 'Unsafe') + '</td>'
+      + '<td>' + escapeHtml(r.location||'') + '</td>'
+      + '<td>' + (r.severity===null||r.severity===undefined ? 'N/A' : escapeHtml(String(r.severity))) + '</td>'
+      + '<td>' + escapeHtml(r.status||'') + '</td>'
+      + '<td>' + escapeHtml(r.what||'') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  const doc = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>HSE Observation Export</title><style>'
+    + '@page{size:A4 landscape; margin:14mm;}'
+    + 'body{font-family:Arial,Helvetica,sans-serif; color:#0F172A; margin:0;}'
+    + '.head{display:flex; align-items:center; gap:14px; border-bottom:2px solid #0F172A; padding-bottom:12px; margin-bottom:14px;}'
+    + '.head img{height:40px;}'
+    + '.head h1{font-size:18px; margin:0;}'
+    + '.head p{font-size:11px; color:#475569; margin:2px 0 0;}'
+    + '.meta{font-size:10.5px; color:#475569; margin-bottom:14px;}'
+    + '.summary{display:flex; gap:18px; margin-bottom:16px; flex-wrap:wrap;}'
+    + '.summary div{border:1px solid #E2E8F0; border-radius:8px; padding:8px 14px;}'
+    + '.summary b{display:block; font-size:16px;}'
+    + '.summary span{font-size:9.5px; text-transform:uppercase; color:#64748B;}'
+    + 'table{width:100%; border-collapse:collapse; font-size:9.5px;}'
+    + 'th{text-align:left; background:#F6F8FB; padding:6px 8px; border-bottom:1px solid #E2E8F0; text-transform:uppercase; font-size:8.5px; color:#475569;}'
+    + 'td{padding:6px 8px; border-bottom:1px solid #EEF1F6; vertical-align:top;}'
+    + '.muted{color:#94A3B8; font-size:8.5px;}'
+    + '@media print{a{display:none;}}'
+    + '</style></head><body>'
+    + '<div class="head"><img src="' + logoUrl + '" onerror="this.style.display=\'none\'"><div><h1>HSE Observation Report</h1><p>Bin Quraya Company LTD. &middot; Master Gas System III &middot; Package 05</p></div></div>'
+    + '<div class="meta">Generated ' + escapeHtml(new Date().toLocaleString()) + ' &middot; Filters: ' + escapeHtml(currentFilterSummary()) + '</div>'
+    + '<div class="summary">'
+    + '<div><b>' + rows.length + '</b><span>Total shown</span></div>'
+    + '<div><b>' + counts.positive + '</b><span>Safe practices</span></div>'
+    + '<div><b>' + counts.unsafeact + '</b><span>Unsafe acts</span></div>'
+    + '<div><b>' + counts.unsafecondition + '</b><span>Unsafe conditions</span></div>'
+    + '<div><b>' + counts.nearmiss + '</b><span>Near misses</span></div>'
+    + '<div><b>' + closureRate + '%</b><span>Closure rate</span></div>'
+    + '</div>'
+    + '<table><thead><tr><th>Date</th><th>Personnel</th><th>Nature</th><th>Location</th><th>Sev</th><th>Status</th><th>Findings</th></tr></thead><tbody>' + tableRows + '</tbody></table>'
+    + '</body></html>';
+
+  const win = window.open('', '_blank');
+  if(!win){ alert('Please allow pop-ups to export a PDF.'); return; }
+  win.document.open();
+  win.document.write(doc);
+  win.document.close();
+  win.onload = () => { win.focus(); win.print(); };
+}
+document.getElementById('exportCsvBtn')?.addEventListener('click', exportToCsv);
+document.getElementById('exportPdfBtn')?.addEventListener('click', exportToPdf);
+
 // Reporting Trend scrub/zoom slider -- a local view control on trendCache only.
 // Deliberately does NOT call renderAll()/renderTrend(): those recompute from rows and
 // would wipe out whatever window the user just dragged to.
