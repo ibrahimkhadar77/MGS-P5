@@ -406,6 +406,12 @@ function isLikelyImageUrl(url){
   return !!getDriveFileId(url);
 }
 
+// Adds thousands separators to any number that reaches the screen. Passes strings
+// (like an already-formatted "91.2%") straight through unchanged.
+function fmtNum(n){
+  if(typeof n === 'number' && isFinite(n)) return n.toLocaleString('en-US');
+  return n;
+}
 function escapeHtml(text){
   return String(text || '')
     .replace(/&/g, '&amp;')
@@ -827,17 +833,17 @@ function renderKpis(rows){
   })();
 
   const cards = [
-    {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, num:shown, lbl:'TOTAL REPORTS', cap:`${total} database entries`, trend:trendTotal},
+    {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, num:shown, lbl:'TOTAL REPORTS', cap:`${fmtNum(total)} database entries`, trend:trendTotal},
     {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations', trend:trendPositive},
     {cls:'k-red', quick:'unsafeact', icon:ICONS.warn, badge:pctUnsafeAct+'%', num:unsafeAct, lbl:'UNSAFE ACTS', cap:'Behavior-related', trend:trendUnsafeAct},
     {cls:'k-navy', quick:'unsafecondition', icon:ICONS.hazard, badge:pctUnsafeCondition+'%', num:unsafeCondition, lbl:'UNSAFE CONDITIONS', cap:'Environment/hazard-related', trend:trendUnsafeCondition},
     {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse', trend:trendNearmiss},
-    {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${closed} issues resolved`, trend:trendClosure},
+    {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${fmtNum(closed)} issues resolved`, trend:trendClosure},
   ];
   document.getElementById('kpiRow').innerHTML = cards.map(c=>`
     <div class="kpi ${c.cls} ${FILTERS.quick===c.quick && c.quick ? 'active':''}" data-quick="${c.quick||''}">
       <div class="kpi-top"><div class="kpi-ic">${svgIcon(c.icon,'width:15px;height:15px')}</div>${c.badge?`<div class="kpi-badge">${c.badge}</div>`:''}</div>
-      <div class="num">${c.num}</div>
+      <div class="num">${fmtNum(c.num)}</div>
       <div class="lbl">${c.lbl}</div>
       ${kpiTrendHtml(c.trend)}
       <div class="cap">${c.cap}</div>
@@ -968,7 +974,7 @@ function renderCategoryDonut(rows){
     <div class="leg-row ${FILTERS.category===l?'active':''}" data-l="${i}">
       <span class="leg-dot" style="background:${colors[i]}"></span>
       <span class="leg-name" title="${l}">${l}</span>
-      <span class="leg-count">${data[i]}</span>
+      <span class="leg-count">${fmtNum(data[i])}</span>
     </div>`).join('');
   Array.from(document.querySelectorAll('#catLegend .leg-row')).forEach((el,i)=>{
     el.addEventListener('click', ()=>{ selectCategory(labels[i]); });
@@ -998,7 +1004,7 @@ function renderTopReporters(rows){
     <div class="rep-row ${FILTERS.observer===s[0]?'active':''}" data-name="${escapeHtml(s[0])}">
       <div class="rep-rank ${i===0?'gold':''}">${i+1}</div>
       <div class="rep-name">${escapeHtml(s[0])}</div>
-      <div class="rep-count">${s[1]} reports</div>
+      <div class="rep-count">${fmtNum(s[1])} reports</div>
     </div>`).join('');
   Array.from(document.querySelectorAll('#topReporters .rep-row')).forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -1033,7 +1039,7 @@ function renderHotspots(rows){
     return `<div class="hs-row ${FILTERS.location===loc?'active':''}" data-loc="${escapeHtml(loc)}">
       <span class="hs-km" title="${escapeHtml(loc)}">${escapeHtml(loc)}</span>
       <span class="hs-bar-track"><span class="hs-bar-fill" style="width:${pct}%; background:${sevColor(maxSev)}"></span></span>
-      <span class="hs-count">${items.length}</span>
+      <span class="hs-count">${fmtNum(items.length)}</span>
     </div>`;
   }).join('');
   Array.from(document.querySelectorAll('#hotspotList .hs-row')).forEach(el=>{
@@ -1100,7 +1106,7 @@ function renderRateAndAging(rows){
   document.getElementById('rateCard').innerHTML = `
     <div class="rc-num">${pct}%</div>
     <div class="rc-body">
-      <div class="rc-lbl">Corrected on the spot (${correctedYes} of ${withAnswer.length} answered)</div>
+      <div class="rc-lbl">Corrected on the spot (${fmtNum(correctedYes)} of ${fmtNum(withAnswer.length)} answered)</div>
       <div class="rc-bar"><div class="rc-fill" style="width:${pct}%"></div></div>
     </div>`;
 
@@ -1150,7 +1156,7 @@ function renderTable(rows){
   if(summary){
     if(sorted.length){
       const end = Math.min(start + LOG_PAGE_SIZE, sorted.length);
-      summary.textContent = `Showing ${start + 1}-${end} of ${sorted.length} records`;
+      summary.textContent = `Showing ${fmtNum(start + 1)}-${fmtNum(end)} of ${fmtNum(sorted.length)} records`;
     } else {
       summary.textContent = 'No records available for the current filter';
     }
@@ -1246,7 +1252,7 @@ function drawLineChart(id, labels, data, fullLabels){
               const index = items[0].dataIndex;
               return fullLabels && fullLabels[index] ? fullLabels[index] : items[0].label;
             },
-            label:(item)=>`Reports: ${item.parsed.y}`
+            label:(item)=>`Reports: ${fmtNum(item.parsed.y)}`
           }
         }
       },
@@ -1268,7 +1274,7 @@ function drawLineChart(id, labels, data, fullLabels){
             font:{family:'Inter',size:10.5},
             color:'#94A3B8',
             precision:0,
-            callback:(value)=>String(Math.round(value))
+            callback:(value)=>fmtNum(Math.round(value))
           },
           beginAtZero:true,
           suggestedMax: trendYMax,
@@ -1319,7 +1325,7 @@ function drawBar(id, labels, data, onClick, colors){
         }
       },
       scales:{
-        x:{ grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B', precision:0, callback:(value)=>String(Math.round(value))} , beginAtZero:true },
+        x:{ grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B', precision:0, callback:(value)=>fmtNum(Math.round(value))} , beginAtZero:true },
         y:{ grid:{display:false}, ticks:{font:{family:'Inter',size:11,weight:'500'}, color:'#0F172A'} }
       },
       onClick: onClick ? (evt,els)=>{ if(els.length) onClick(labels[els[0].index]); } : undefined,
@@ -1459,11 +1465,11 @@ function exportToPdf(){
     + '<div class="head"><img src="' + logoUrl + '" onerror="this.style.display=\'none\'"><div><h1>HSE Observation Report</h1><p>Bin Quraya Company LTD. &middot; Master Gas System III &middot; Package 05</p></div></div>'
     + '<div class="meta">Generated ' + escapeHtml(new Date().toLocaleString()) + ' &middot; Filters: ' + escapeHtml(currentFilterSummary()) + '</div>'
     + '<div class="summary">'
-    + '<div><b>' + rows.length + '</b><span>Total shown</span></div>'
-    + '<div><b>' + counts.positive + '</b><span>Safe practices</span></div>'
-    + '<div><b>' + counts.unsafeact + '</b><span>Unsafe acts</span></div>'
-    + '<div><b>' + counts.unsafecondition + '</b><span>Unsafe conditions</span></div>'
-    + '<div><b>' + counts.nearmiss + '</b><span>Near misses</span></div>'
+    + '<div><b>' + fmtNum(rows.length) + '</b><span>Total shown</span></div>'
+    + '<div><b>' + fmtNum(counts.positive) + '</b><span>Safe practices</span></div>'
+    + '<div><b>' + fmtNum(counts.unsafeact) + '</b><span>Unsafe acts</span></div>'
+    + '<div><b>' + fmtNum(counts.unsafecondition) + '</b><span>Unsafe conditions</span></div>'
+    + '<div><b>' + fmtNum(counts.nearmiss) + '</b><span>Near misses</span></div>'
     + '<div><b>' + closureRate + '%</b><span>Closure rate</span></div>'
     + '</div>'
     + '<table><thead><tr><th>Date</th><th>Personnel</th><th>Nature</th><th>Location</th><th>Sev</th><th>Status</th><th>Findings</th></tr></thead><tbody>' + tableRows + '</tbody></table>'
@@ -1578,7 +1584,7 @@ async function loadData(){
     setSync(true, 'Live data unavailable');
     showBanner(`<b>Could not load configured source</b> (${err.message}). Current mode: <b>${DATA_SOURCE_MODE}</b>. Check only this mode configuration for Sheet ID ${SHEET_ID}.`);
   }
-  document.getElementById('countNote').textContent = ALL_ROWS.length + ' total observations loaded';
+  document.getElementById('countNote').textContent = fmtNum(ALL_ROWS.length) + ' total observations loaded';
 }
 loadData();
 refreshTimer = setInterval(loadData, REFRESH_MS);
