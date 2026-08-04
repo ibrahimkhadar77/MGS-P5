@@ -20,7 +20,7 @@
   --ease:cubic-bezier(.2,.7,.3,1);
 }
 *{box-sizing:border-box;}
-html,body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
+html,body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; overflow-x:hidden;}
 body{font-size:14px; line-height:1.5;}
 .wrap{max-width:1320px; margin:0 auto; padding:20px 22px 32px;}
 svg.ic{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
@@ -198,7 +198,7 @@ svg.ic{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; 
 .t-grid2{display:grid; grid-template-columns:1.3fr 1fr; gap:18px; height:100%; min-height:0;}
 .t-grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; height:100%; min-height:0;}
 .t-panel{
-  border:1px solid var(--line); border-radius:var(--radius-lg); padding:20px 22px; height:100%; min-height:0;
+  border:1px solid var(--line); border-radius:var(--radius-lg); padding:20px 22px; height:100%; min-height:0; min-width:0;
   display:flex; flex-direction:column; background:var(--card); box-shadow:var(--shadow-card);
 }
 .panel-head{display:flex; align-items:center; justify-content:space-between; gap:10px; font-weight:700; font-size:14.5px; margin-bottom:4px; flex-shrink:0; letter-spacing:-.01em;}
@@ -247,15 +247,15 @@ svg.ic{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; 
 .raw-note{font-size:11.5px; font-weight:400; color:var(--ink-faint); font-style:italic;}
 
 /* donut + legend */
-.donut-row{flex:1; min-height:0; display:flex; gap:18px; align-items:stretch;}
+.donut-row{flex:1; min-height:0; min-width:0; display:flex; gap:18px; align-items:stretch;}
 .donut-box{width:140px; height:100%; position:relative; flex-shrink:0; display:flex; align-items:center;}
 .donut-box canvas{width:100% !important; height:100% !important; max-height:180px;}
-.legend-list{flex:1; min-height:0; display:flex; flex-direction:column; gap:6px; overflow-y:auto; padding-right:6px; position:relative;}
+.legend-list{flex:1; min-height:0; min-width:0; display:flex; flex-direction:column; gap:6px; overflow-y:auto; padding-right:6px; position:relative;}
 .leg-row{display:flex; align-items:center; gap:9px; font-size:12px; cursor:pointer; padding:6px 8px; border-radius:var(--radius-sm); flex-shrink:0; transition:background .15s var(--ease);}
 .leg-row:hover{background:var(--paper);}
 .leg-row.active{background:var(--blue-soft);}
 .leg-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
-.leg-name{flex:1; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;}
+.leg-name{flex:1; min-width:0; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;}
 .leg-count{font-family:'Inter',sans-serif; font-size:11px; font-weight:700; color:var(--ink-soft); background:var(--paper); border-radius:var(--radius-sm); padding:2px 8px; flex-shrink:0;}
 
 /* reporter list */
@@ -271,7 +271,7 @@ svg.ic{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; 
   display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; flex-shrink:0;
 }
 .rep-rank.gold{background:linear-gradient(135deg,#FDE68A,#F5C542); color:#7A5A00;}
-.rep-name{flex:1; font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.rep-name{flex:1; min-width:0; font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .rep-count{
   font-family:'Inter',sans-serif; font-size:11px; font-weight:700; background:var(--blue);
   color:#fff; border-radius:var(--radius-pill); padding:4px 10px; white-space:nowrap; flex-shrink:0;
@@ -304,7 +304,7 @@ svg.ic{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; 
 .aging-days{font-family:'Inter',sans-serif; font-weight:700; font-size:12px; width:60px; flex-shrink:0;}
 .aging-days.hot{color:var(--red);}
 .aging-days.warm{color:var(--olive-dark);}
-.aging-meta{flex:1; font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.aging-meta{flex:1; min-width:0; font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .aging-meta b{color:var(--ink);}
 .aging-empty{font-family:'Inter',sans-serif; font-size:12px; color:var(--ink-faint); text-align:center; padding:20px 0;}
 
