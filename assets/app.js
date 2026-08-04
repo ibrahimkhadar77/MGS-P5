@@ -779,15 +779,20 @@ function dayOverDayTrend(rows, matchFn){
     else if(sameDay(d, yesterday)) yestCount++;
   });
   if(todayCount===0 && yestCount===0) return null;
-  if(yestCount===0) return {dir:'up', text:'New today'};
+  if(yestCount===0) return {dir:'up', value:'New', label:'Today'};
   const pct = Math.round(((todayCount-yestCount)/yestCount)*100);
-  if(pct===0) return {dir:'flat', text:'Flat vs yesterday'};
-  return {dir: pct>0?'up':'down', text:`${pct>0?'+':''}${pct}% vs yesterday`};
+  if(pct===0) return {dir:'flat', value:'0%', label:'vs Yesterday'};
+  return {dir: pct>0?'up':'down', value:`${pct>0?'+':''}${pct}%`, label:'vs Yesterday'};
 }
+// Executive two-line format: a prominent value line (arrow + number) with a smaller,
+// secondary comparison label underneath -- e.g. "▲ +143%" over "vs Yesterday".
 function kpiTrendHtml(trend){
   if(!trend) return '';
-  const arrow = trend.dir==='up' ? '&#8593;' : trend.dir==='down' ? '&#8595;' : '&#8594;';
-  return `<div class="kpi-trend trend-${trend.dir}">${arrow} ${trend.text}</div>`;
+  const arrow = trend.dir==='up' ? '▲' : trend.dir==='down' ? '▼' : '●';
+  return `<div class="kpi-trend trend-${trend.dir}">
+      <div class="trend-value">${arrow} ${trend.value}</div>
+      <div class="trend-label">${trend.label}</div>
+    </div>`;
 }
 
 function renderKpis(rows){
@@ -828,21 +833,21 @@ function renderKpis(rows){
     const rateToday = asOf(endOfToday), rateYesterday = asOf(endOfYesterday);
     if(rateToday===null || rateYesterday===null) return null;
     const delta = +(rateToday-rateYesterday).toFixed(1);
-    if(delta===0) return {dir:'flat', text:'Flat vs yesterday'};
-    return {dir: delta>0?'up':'down', text:`${delta>0?'+':''}${delta}pt vs yesterday`};
+    if(delta===0) return {dir:'flat', value:'0.0pt', label:'vs Yesterday'};
+    return {dir: delta>0?'up':'down', value:`${delta>0?'+':''}${delta}pt`, label:'vs Yesterday'};
   })();
 
   const cards = [
-    {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, num:shown, lbl:'TOTAL REPORTS', cap:`${fmtNum(total)} database entries`, trend:trendTotal},
-    {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations', trend:trendPositive},
-    {cls:'k-red', quick:'unsafeact', icon:ICONS.warn, badge:pctUnsafeAct+'%', num:unsafeAct, lbl:'UNSAFE ACTS', cap:'Behavior-related', trend:trendUnsafeAct},
-    {cls:'k-navy', quick:'unsafecondition', icon:ICONS.hazard, badge:pctUnsafeCondition+'%', num:unsafeCondition, lbl:'UNSAFE CONDITIONS', cap:'Environment/hazard-related', trend:trendUnsafeCondition},
-    {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse', trend:trendNearmiss},
-    {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${fmtNum(closed)} issues resolved`, trend:trendClosure},
+    {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, badgeLabel:null, num:shown, lbl:'TOTAL REPORTS', cap:`${fmtNum(total)} database entries`, trend:trendTotal},
+    {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', badgeLabel:'Positive', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations', trend:trendPositive},
+    {cls:'k-red', quick:'unsafeact', icon:ICONS.warn, badge:pctUnsafeAct+'%', badgeLabel:'Unsafe', num:unsafeAct, lbl:'UNSAFE ACTS', cap:'Behavior-related', trend:trendUnsafeAct},
+    {cls:'k-navy', quick:'unsafecondition', icon:ICONS.hazard, badge:pctUnsafeCondition+'%', badgeLabel:'Conditions', num:unsafeCondition, lbl:'UNSAFE CONDITIONS', cap:'Environment/hazard-related', trend:trendUnsafeCondition},
+    {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', badgeLabel:'Near Misses', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse', trend:trendNearmiss},
+    {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, badgeLabel:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${fmtNum(closed)} issues resolved`, trend:trendClosure},
   ];
   document.getElementById('kpiRow').innerHTML = cards.map(c=>`
     <div class="kpi ${c.cls} ${FILTERS.quick===c.quick && c.quick ? 'active':''}" data-quick="${c.quick||''}">
-      <div class="kpi-top"><div class="kpi-ic">${svgIcon(c.icon,'width:15px;height:15px')}</div>${c.badge?`<div class="kpi-badge">${c.badge}</div>`:''}</div>
+      <div class="kpi-top"><div class="kpi-ic">${svgIcon(c.icon,'width:15px;height:15px')}</div>${c.badge?`<div class="kpi-badge"><span class="badge-val">${c.badge}</span><span class="badge-lbl">${c.badgeLabel}</span></div>`:''}</div>
       <div class="num">${fmtNum(c.num)}</div>
       <div class="lbl">${c.lbl}</div>
       ${kpiTrendHtml(c.trend)}
