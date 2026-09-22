@@ -795,6 +795,7 @@ function renderAll(){
   renderCadence(rows);
   renderMonthly(rows);
   renderRateAndAging(rows);
+  renderAttention(rows);
   renderTable(rows);
   document.getElementById('logCount').textContent = rows.length + ' shown of ' + ALL_ROWS.length;
 }
@@ -887,15 +888,18 @@ function renderKpis(rows){
   })();
 
   const cards = [
-    {cls:'k-blue', quick:null, icon:ICONS.doc, badge:null, badgeLabel:null, num:shown, lbl:'TOTAL REPORTS', cap:`${fmtNum(total)} database entries`, trend:trendTotal},
+    {cls:'k-blue', hero:true, quick:null, icon:ICONS.doc, badge:null, badgeLabel:null, num:shown, lbl:'TOTAL REPORTS', cap:`${fmtNum(total)} database entries`, trend:trendTotal},
     {cls:'k-green', quick:'positive', icon:ICONS.shield, badge:pctPositive+'%', badgeLabel:'Positive', num:positive, lbl:'SAFE PRACTICES', cap:'Positive observations', trend:trendPositive},
     {cls:'k-red', quick:'unsafeact', icon:ICONS.warn, badge:pctUnsafeAct+'%', badgeLabel:'Unsafe', num:unsafeAct, lbl:'UNSAFE ACTS', cap:'Behavior-related', trend:trendUnsafeAct},
     {cls:'k-navy', quick:'unsafecondition', icon:ICONS.hazard, badge:pctUnsafeCondition+'%', badgeLabel:'Conditions', num:unsafeCondition, lbl:'UNSAFE CONDITIONS', cap:'Environment/hazard-related', trend:trendUnsafeCondition},
     {cls:'k-teal', quick:'nearmiss', icon:ICONS.pulse, badge:pctNearmiss+'%', badgeLabel:'Near Misses', num:nearmiss, lbl:'NEAR MISSES', cap:'Could have been worse', trend:trendNearmiss},
     {cls:'k-olive', quick:null, icon:ICONS.check, badge:null, badgeLabel:null, num:closureRate+'%', lbl:'CLOSURE RATE', cap:`${fmtNum(closed)} issues resolved`, trend:trendClosure},
   ];
+  // "hero" only changes CSS class (larger number/icon) -- same data, same click-to-filter,
+  // same everything else. Gives the KPI row a clear visual hierarchy instead of six
+  // identical cards, per the design brief.
   document.getElementById('kpiRow').innerHTML = cards.map(c=>`
-    <div class="kpi ${c.cls} ${FILTERS.quick===c.quick && c.quick ? 'active':''}" data-quick="${c.quick||''}">
+    <div class="kpi ${c.cls} ${c.hero?'kpi-hero':''} ${FILTERS.quick===c.quick && c.quick ? 'active':''}" data-quick="${c.quick||''}">
       <div class="kpi-top"><div class="kpi-ic">${svgIcon(c.icon,'width:15px;height:15px')}</div>${c.badge?`<div class="kpi-badge"><span class="badge-val">${c.badge}</span><span class="badge-lbl">${c.badgeLabel}</span></div>`:''}</div>
       <div class="num">${fmtNum(c.num)}</div>
       <div class="lbl">${c.lbl}</div>
@@ -1111,15 +1115,20 @@ function renderHotspots(rows){
 // already used by the Weekly Cadence and Monthly Comparison charts, so "current week/month"
 // means the same thing everywhere on the dashboard. Read-only: never touches ALL_ROWS.
 let reporterPeriod = 'weekly';
+// 'ptd' (project-to-date) is just "no date restriction" -- every row that already passes
+// the dashboard's own filters counts, same as the original all-time Top Reporters panel.
 function computeTopReportersByPeriod(rows, period){
   const now = new Date();
   const nowWeek = weekKey(now);
   const nowMonth = monthKey(now);
   const counts = {};
   rows.forEach(r=>{
-    const d = parseDate(r.dateObs);
-    if(!d) return;
-    const inPeriod = period === 'monthly' ? monthKey(d) === nowMonth : weekKey(d) === nowWeek;
+    let inPeriod = true;
+    if(period !== 'ptd'){
+      const d = parseDate(r.dateObs);
+      if(!d) return;
+      inPeriod = period === 'monthly' ? monthKey(d) === nowMonth : weekKey(d) === nowWeek;
+    }
     if(!inPeriod) return;
     const name = r.observer || 'Unknown';
     counts[name] = (counts[name] || 0) + 1;
@@ -1131,7 +1140,8 @@ function renderTopReportersPeriod(rows){
   if(!list) return;
   const sorted = computeTopReportersByPeriod(rows, reporterPeriod);
   if(!sorted.length){
-    list.innerHTML = `<div class="aging-empty">No reports yet ${reporterPeriod==='monthly' ? 'this month' : 'this week'}.</div>`;
+    const emptyLabel = reporterPeriod==='monthly' ? 'this month' : reporterPeriod==='ptd' ? 'for the current filters' : 'this week';
+    list.innerHTML = `<div class="aging-empty">No reports yet ${emptyLabel}.</div>`;
     return;
   }
   list.innerHTML = sorted.map((s,i)=>`
@@ -1310,17 +1320,71 @@ const MODAL_CHART_RENDERERS = {
         responsive:true, maintainAspectRatio:false,
         animation:{duration:600, easing:'easeOutQuart'},
         plugins:{
-          legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:'#475569', boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
-          tooltip:{ backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
+          legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:'#9FACC4', boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
+          tooltip:{ backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
         },
         scales:{
-          x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B'} },
-          y:{ stacked:true, grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#94A3B8'} }
+          x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:'#7885A0'} },
+          y:{ stacked:true, grid:{color:'rgba(255,255,255,.07)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#7885A0'} }
         }
       }
     });
   }
 };
+
+// --- Attention Required (critical open items + overdue) ---
+// A re-presentation of data already computed elsewhere on the dashboard: open status
+// (isOpenStatus), severity (r.severity, the same 1-5 scale the Severity & Risk Profile
+// chart uses), and days-open (the same calculation and >=30-day threshold Open Items
+// Aging already uses). No new thresholds invented, no fabricated data -- this is purely
+// existing open/severity/aging data surfaced together for a faster "what needs eyes on it
+// right now" read, per the design brief's Attention Required section.
+function renderAttention(rows){
+  const list = document.getElementById('attentionList');
+  const summary = document.getElementById('attentionSummary');
+  if(!list) return;
+  const now = new Date();
+  const openRows = rows.filter(r=>isOpenStatus(r.status)).map(r=>{
+    const d = parseDate(r.dateObs);
+    const days = d ? Math.max(0, Math.round((now - d)/86400000)) : null;
+    return {...r, days};
+  });
+  const isCritical = r => r.severity!==null && r.severity>=4;
+  const critical = openRows.filter(isCritical);
+  const overdue = openRows.filter(r=>r.days!==null && r.days>=30);
+  const overdueOnly = overdue.filter(r=>!isCritical(r));
+  const criticalSorted = [...critical].sort((a,b)=> (b.severity-a.severity) || ((b.days||0)-(a.days||0)));
+  const overdueSorted = [...overdueOnly].sort((a,b)=> (b.days||0)-(a.days||0));
+  const merged = [...criticalSorted, ...overdueSorted].slice(0,20);
+
+  if(summary){
+    summary.innerHTML = `
+      <span class="attn-summary-chip crit">${fmtNum(critical.length)} Critical Open (Sev 4-5)</span>
+      <span class="attn-summary-chip warn">${fmtNum(overdue.length)} Overdue 30+ Days</span>`;
+  }
+
+  if(!merged.length){
+    list.innerHTML = `<div class="attn-empty">No critical or overdue open items in the current filters.</div>`;
+    return;
+  }
+  list.innerHTML = merged.map(r=>{
+    const crit = isCritical(r);
+    const badge = crit ? `SEV ${r.severity}` : `${r.days}D OPEN`;
+    const daysLabel = r.days===null ? '\u2014' : r.days+'d open';
+    return `<div class="attn-row ${crit?'crit':'warn'}" data-loc="${escapeHtml(normLoc(r.location))}">
+      <span class="attn-badge">${badge}</span>
+      <span class="attn-meta"><b>${escapeHtml(r.location||'\u2014')}</b> \u00b7 ${escapeHtml(r.observer||'\u2014')} \u00b7 ${escapeHtml((r.what||'').slice(0,45))}</span>
+      <span class="attn-days">${daysLabel}</span>
+    </div>`;
+  }).join('');
+  Array.from(list.querySelectorAll('.attn-row')).forEach(el=>{
+    el.addEventListener('click', ()=>{
+      FILTERS.location = el.getAttribute('data-loc');
+      renderAll();
+      document.querySelector('.tab-btn[data-tab="insights"]')?.click();
+    });
+  });
+}
 
 function renderRateAndAging(rows){
   const withAnswer = rows.filter(r=>r.correctedOnSpot);
@@ -1518,7 +1582,7 @@ function drawLineChart(id, labels, data, fullLabels, opts){
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
+          backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1,
           padding:10, cornerRadius:10, displayColors:false,
           titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5},
           callbacks:{
@@ -1534,7 +1598,7 @@ function drawLineChart(id, labels, data, fullLabels, opts){
       scales:{
         x:{
           ticks:{
-            color:'#64748B',
+            color:'#7885A0',
             font:{family:'Inter',size:10.5},
             maxRotation:0,
             autoSkip:true,
@@ -1544,10 +1608,10 @@ function drawLineChart(id, labels, data, fullLabels, opts){
           grid:{display:false}
         },
         y:{
-          grid:{color:'rgba(15,23,42,.05)'},
+          grid:{color:'rgba(255,255,255,.07)'},
           ticks:{
             font:{family:'Inter',size:10.5},
-            color:'#94A3B8',
+            color:'#7885A0',
             precision:0,
             callback:(value)=>fmtNum(Math.round(value))
           },
@@ -1565,14 +1629,14 @@ function drawDoughnut(id, labels, data, colors, onClick, opts){
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {
     type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:3, borderColor:'#fff', hoverOffset:6 }] },
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:3, borderColor:'#121C31', hoverOffset:6 }] },
     options:{
       responsive:true, cutout:'66%', maintainAspectRatio:false,
       animation:{duration:600, easing:'easeOutQuart'},
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
+          backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1,
           padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
         },
         valueLabelPlugin:{ enabled: !!(opts && opts.valueLabels) }
@@ -1597,14 +1661,14 @@ function drawBar(id, labels, data, onClick, colors, opts){
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
+          backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1,
           padding:10, cornerRadius:10, displayColors:false, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
         },
         valueLabelPlugin:{ enabled: !!(opts && opts.valueLabels) }
       },
       scales:{
-        x:{ grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B', precision:0, callback:(value)=>fmtNum(Math.round(value))} , beginAtZero:true },
-        y:{ grid:{display:false}, ticks:{font:{family:'Inter',size:11,weight:'500'}, color:'#0F172A'} }
+        x:{ grid:{color:'rgba(255,255,255,.07)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#7885A0', precision:0, callback:(value)=>fmtNum(Math.round(value))} , beginAtZero:true },
+        y:{ grid:{display:false}, ticks:{font:{family:'Inter',size:11,weight:'500'}, color:'#E8EDF7'} }
       },
       onClick: onClick ? (evt,els)=>{ if(els.length) onClick(labels[els[0].index]); } : undefined,
       onHover: onClick ? (evt,els)=>{ evt.native.target.style.cursor = els.length?'pointer':'default'; } : undefined

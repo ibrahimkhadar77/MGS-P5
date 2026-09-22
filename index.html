@@ -18,21 +18,21 @@
     <div class="hero-left">
       <img class="hero-logo" src="assets/logo.png" alt="Bin Quraya Company logo">
       <div>
-        <div class="hero-company">Bin Quraya Company LTD.</div>
-        <div class="hero-kicker">Master Gas System III &middot; Package 05</div>
-        <h1>HSE Observation Dashboard</h1>
+        <div class="hero-company">Bin Quraya Company LTD. &middot; Master Gas System III &middot; Package 05</div>
+        <h1>MGS III PKG-05 Safety Observations Dashboard</h1>
         <div class="hero-sub">Real-Time HSE Performance Analytics</div>
       </div>
     </div>
     <div class="hero-right">
       <div class="header-meta">
+        <span>Reporting period</span>
+        <b id="reportingPeriod">&mdash;</b>
+      </div>
+      <div class="header-meta">
         <span>Last updated</span>
         <b id="headerClock">&mdash;</b>
       </div>
       <div class="status-pill"><span class="dot" id="syncDot"></span><span id="syncText">Loading data</span></div>
-      <button class="theme-toggle" type="button" id="themeToggle" title="Toggle appearance" aria-label="Toggle appearance">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-      </button>
     </div>
   </div>
 
@@ -78,6 +78,7 @@
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="attention">Attention Required</button>
     <button class="tab-btn" data-tab="team">Reporters &amp; Designation</button>
     <button class="tab-btn" data-tab="insights">Management Insights</button>
     <button class="tab-btn" data-tab="trends">Trends &amp; Compliance</button>
@@ -121,6 +122,17 @@
             <div class="legend-list" id="catLegend"></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="tab-content" data-tab="attention">
+      <div class="t-panel">
+        <div class="panel-head">
+          <div class="panel-head-main"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Attention Required</div>
+        </div>
+        <p class="hint">Critical-severity and overdue open items across the current filters &mdash; click a row to jump to it in the log.</p>
+        <div class="attn-summary" id="attentionSummary"></div>
+        <div class="attn-list" id="attentionList"></div>
       </div>
     </div>
 
@@ -228,6 +240,7 @@
           <div class="seg-toggle" id="reporterPeriodToggle">
             <button type="button" class="seg-btn active" data-period="weekly">Weekly</button>
             <button type="button" class="seg-btn" data-period="monthly">Monthly</button>
+            <button type="button" class="seg-btn" data-period="ptd">PTD</button>
           </div>
         </div>
         <p class="hint">Weekly &amp; Monthly Reporting Leaders</p>
@@ -314,15 +327,28 @@
   tick();
   setInterval(tick, 30000);
 
-  var toggle = document.getElementById('themeToggle');
-  if(toggle){
-    var isDark = false;
-    var moonIcon = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
-    var sunIcon = '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
-    toggle.addEventListener('click', function(){
-      isDark = !isDark;
-      toggle.innerHTML = isDark ? sunIcon : moonIcon;
+  // Reporting period: the actual earliest-to-latest observation date currently in
+  // ALL_ROWS, computed once data finishes loading. Purely a read of real data -- no
+  // invented date range, and never touches FILTERS or any chart.
+  function paintReportingPeriod(){
+    var el = document.getElementById('reportingPeriod');
+    if(!el || typeof ALL_ROWS === 'undefined' || !ALL_ROWS.length) return;
+    var fmt = function(d){ return d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}); };
+    var min = null, max = null;
+    for(var i=0;i<ALL_ROWS.length;i++){
+      var d = parseDate(ALL_ROWS[i].dateObs);
+      if(!d) continue;
+      if(!min || d < min) min = d;
+      if(!max || d > max) max = d;
+    }
+    if(min && max) el.textContent = fmt(min) + ' – ' + fmt(max);
+  }
+  if(kpiRow){
+    var periodObserver = new MutationObserver(function(){
+      paintReportingPeriod();
+      periodObserver.disconnect();
     });
+    periodObserver.observe(kpiRow, {childList:true});
   }
 })();
 </script>
