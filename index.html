@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HSE Observation Dashboard</title>
+<script>
+// Applied before the stylesheet paints anything, so switching themes never shows a flash
+// of the wrong theme on load. Dark is the default "Command Center" look; light is opt-in
+// and remembered via localStorage once the person picks it from the header toggle.
+(function(){
+  try{
+    var saved = localStorage.getItem('mgsp5-theme');
+    if(saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  }catch(e){}
+})();
+</script>
 <link rel="icon" type="image/png" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -33,6 +44,9 @@
         <b id="headerClock">&mdash;</b>
       </div>
       <div class="status-pill"><span class="dot" id="syncDot"></span><span id="syncText">Loading data</span></div>
+      <button class="theme-toggle" type="button" id="themeToggle" title="Switch appearance" aria-label="Switch appearance">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
     </div>
   </div>
 
@@ -349,6 +363,41 @@
       periodObserver.disconnect();
     });
     periodObserver.observe(kpiRow, {childList:true});
+  }
+
+  // Real light/dark toggle. The head script (top of <head>) already applied the saved
+  // theme before first paint, so this only needs to: flip the attribute, remember the
+  // choice, update the icon, and rebuild the charts -- Chart.js bakes colors into the
+  // canvas at draw time, so a CSS-only theme switch wouldn't recolor an already-drawn
+  // chart. drawLineChart/drawDoughnut/drawBar all read colors via cv() (see app.js) at
+  // the moment they're called, so simply calling renderAll() again is enough to pick up
+  // the new theme -- no chart-specific light/dark branching needed anywhere else.
+  var themeToggle = document.getElementById('themeToggle');
+  var moonIcon = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+  var sunIcon = '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+  function currentTheme(){
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+  function paintToggleIcon(){
+    if(!themeToggle) return;
+    var theme = currentTheme();
+    themeToggle.innerHTML = theme === 'light' ? moonIcon : sunIcon;
+    themeToggle.title = theme === 'light' ? 'Switch to dark' : 'Switch to light';
+    themeToggle.setAttribute('aria-label', themeToggle.title);
+  }
+  paintToggleIcon();
+  if(themeToggle){
+    themeToggle.addEventListener('click', function(){
+      var next = currentTheme() === 'light' ? 'dark' : 'light';
+      if(next === 'dark'){
+        document.documentElement.removeAttribute('data-theme');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+      try{ localStorage.setItem('mgsp5-theme', next); }catch(e){}
+      paintToggleIcon();
+      if(typeof renderAll === 'function') renderAll();
+    });
   }
 })();
 </script>

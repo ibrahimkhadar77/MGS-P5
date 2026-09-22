@@ -406,6 +406,14 @@ function isLikelyImageUrl(url){
   return !!getDriveFileId(url);
 }
 
+// Reads a CSS custom property's current live value (e.g. '--ink') off <html>. Chart.js
+// needs literal color strings, not var() references, so chart configs call this at
+// (re)draw time rather than hardcoding a color -- that's what lets charts pick up
+// whichever theme (light/dark) is currently active without any chart-specific
+// light/dark branching logic of their own.
+function cv(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
 // Adds thousands separators to any number that reaches the screen. Passes strings
 // (like an already-formatted "91.2%") straight through unchanged.
 function fmtNum(n){
@@ -1196,12 +1204,12 @@ function renderMonthly(rows){
       responsive:true, maintainAspectRatio:false,
       animation:{duration:600, easing:'easeOutQuart'},
       plugins:{
-        legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:'#475569', boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
-        tooltip:{ backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
+        legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:cv('--ink-soft'), boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
+        tooltip:{ backgroundColor:cv('--tooltip-bg'), titleColor:cv('--ink'), bodyColor:cv('--ink-soft'), borderColor:cv('--tooltip-border'), borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
       },
       scales:{
-        x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B'} },
-        y:{ stacked:true, grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#94A3B8'} }
+        x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:cv('--ink-faint')} },
+        y:{ stacked:true, grid:{color:cv('--chart-grid')}, ticks:{font:{family:'Inter',size:10.5}, color:cv('--ink-faint')} }
       }
     }
   });
@@ -1320,12 +1328,12 @@ const MODAL_CHART_RENDERERS = {
         responsive:true, maintainAspectRatio:false,
         animation:{duration:600, easing:'easeOutQuart'},
         plugins:{
-          legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:'#9FACC4', boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
-          tooltip:{ backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
+          legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:cv('--ink-soft'), boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
+          tooltip:{ backgroundColor:cv('--tooltip-bg'), titleColor:cv('--ink'), bodyColor:cv('--ink-soft'), borderColor:cv('--tooltip-border'), borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
         },
         scales:{
-          x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:'#7885A0'} },
-          y:{ stacked:true, grid:{color:'rgba(255,255,255,.07)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#7885A0'} }
+          x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:cv('--ink-faint')} },
+          y:{ stacked:true, grid:{color:cv('--chart-grid')}, ticks:{font:{family:'Inter',size:10.5}, color:cv('--ink-faint')} }
         }
       }
     });
@@ -1540,19 +1548,19 @@ const valueLabelPlugin = {
           const { x, y } = el.getProps(['x','y'], true);
           ctx.font = '700 11px Inter, sans-serif';
           ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-          ctx.fillStyle = opts.color || '#0F172A';
+          ctx.fillStyle = opts.color || cv('--ink');
           ctx.fillText(text, x + 8, y);
         } else if(chart.config.type === 'bar'){
           const { x, y } = el.getProps(['x','y'], true);
           ctx.font = '700 11px Inter, sans-serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-          ctx.fillStyle = opts.color || '#0F172A';
+          ctx.fillStyle = opts.color || cv('--ink');
           ctx.fillText(text, x, y - 6);
         } else if(chart.config.type === 'line'){
           const { x, y } = el.getProps(['x','y'], true);
           ctx.font = '700 10.5px Inter, sans-serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-          ctx.fillStyle = opts.color || '#1D4ED8';
+          ctx.fillStyle = opts.color || cv('--blue-dark');
           ctx.fillText(text, x, y - 10);
         } else if(chart.config.type === 'doughnut'){
           const pos = typeof el.tooltipPosition === 'function' ? el.tooltipPosition() : el.getProps(['x','y'], true);
@@ -1582,7 +1590,7 @@ function drawLineChart(id, labels, data, fullLabels, opts){
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1,
+          backgroundColor:cv('--tooltip-bg'), titleColor:cv('--ink'), bodyColor:cv('--ink-soft'), borderColor:cv('--tooltip-border'), borderWidth:1,
           padding:10, cornerRadius:10, displayColors:false,
           titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5},
           callbacks:{
@@ -1598,7 +1606,7 @@ function drawLineChart(id, labels, data, fullLabels, opts){
       scales:{
         x:{
           ticks:{
-            color:'#7885A0',
+            color:cv('--ink-faint'),
             font:{family:'Inter',size:10.5},
             maxRotation:0,
             autoSkip:true,
@@ -1608,10 +1616,10 @@ function drawLineChart(id, labels, data, fullLabels, opts){
           grid:{display:false}
         },
         y:{
-          grid:{color:'rgba(255,255,255,.07)'},
+          grid:{color:cv('--chart-grid')},
           ticks:{
             font:{family:'Inter',size:10.5},
-            color:'#7885A0',
+            color:cv('--ink-faint'),
             precision:0,
             callback:(value)=>fmtNum(Math.round(value))
           },
@@ -1629,14 +1637,14 @@ function drawDoughnut(id, labels, data, colors, onClick, opts){
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {
     type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:3, borderColor:'#121C31', hoverOffset:6 }] },
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:3, borderColor:cv('--card'), hoverOffset:6 }] },
     options:{
       responsive:true, cutout:'66%', maintainAspectRatio:false,
       animation:{duration:600, easing:'easeOutQuart'},
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1,
+          backgroundColor:cv('--tooltip-bg'), titleColor:cv('--ink'), bodyColor:cv('--ink-soft'), borderColor:cv('--tooltip-border'), borderWidth:1,
           padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
         },
         valueLabelPlugin:{ enabled: !!(opts && opts.valueLabels) }
@@ -1661,14 +1669,14 @@ function drawBar(id, labels, data, onClick, colors, opts){
       plugins:{
         legend:{display:false},
         tooltip:{
-          backgroundColor:'#1A2438', titleColor:'#E8EDF7', bodyColor:'#9FACC4', borderColor:'#2B3A57', borderWidth:1,
+          backgroundColor:cv('--tooltip-bg'), titleColor:cv('--ink'), bodyColor:cv('--ink-soft'), borderColor:cv('--tooltip-border'), borderWidth:1,
           padding:10, cornerRadius:10, displayColors:false, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
         },
         valueLabelPlugin:{ enabled: !!(opts && opts.valueLabels) }
       },
       scales:{
-        x:{ grid:{color:'rgba(255,255,255,.07)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#7885A0', precision:0, callback:(value)=>fmtNum(Math.round(value))} , beginAtZero:true },
-        y:{ grid:{display:false}, ticks:{font:{family:'Inter',size:11,weight:'500'}, color:'#E8EDF7'} }
+        x:{ grid:{color:cv('--chart-grid')}, ticks:{font:{family:'Inter',size:10.5}, color:cv('--ink-faint'), precision:0, callback:(value)=>fmtNum(Math.round(value))} , beginAtZero:true },
+        y:{ grid:{display:false}, ticks:{font:{family:'Inter',size:11,weight:'500'}, color:cv('--ink')} }
       },
       onClick: onClick ? (evt,els)=>{ if(els.length) onClick(labels[els[0].index]); } : undefined,
       onHover: onClick ? (evt,els)=>{ evt.native.target.style.cursor = els.length?'pointer':'default'; } : undefined
