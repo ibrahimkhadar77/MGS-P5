@@ -82,6 +82,7 @@
     <button class="tab-btn" data-tab="insights">Management Insights</button>
     <button class="tab-btn" data-tab="trends">Trends &amp; Compliance</button>
     <button class="tab-btn" data-tab="log">Observation Log</button>
+    <button class="tab-btn" data-tab="performance">Reporter Performance</button>
   </div>
 
   <div class="tab-panels">
@@ -220,6 +221,20 @@
       </div>
     </div>
 
+    <div class="tab-content" data-tab="performance">
+      <div class="t-panel">
+        <div class="panel-head">
+          <div class="panel-head-main"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10"/><path d="M17 4v4a5 5 0 0 1-10 0V4"/><path d="M5 4a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4"/><path d="M19 4a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4"/></svg>Top Reporters Performance</div>
+          <div class="seg-toggle" id="reporterPeriodToggle">
+            <button type="button" class="seg-btn active" data-period="weekly">Weekly</button>
+            <button type="button" class="seg-btn" data-period="monthly">Monthly</button>
+          </div>
+        </div>
+        <p class="hint">Weekly &amp; Monthly Reporting Leaders</p>
+        <div class="reporter-list" id="topReportersPeriod"></div>
+      </div>
+    </div>
+
   </div>
 
   <footer>
@@ -264,7 +279,10 @@
         <div class="modal-kicker">Maximized report</div>
         <h2 id="panelModalTitle">Report view</h2>
       </div>
-      <button class="modal-close" id="closePanelModal" type="button" aria-label="Close maximized report">×</button>
+      <div class="modal-head-actions">
+        <button class="modal-download-btn" id="modalDownloadBtn" type="button" title="Download chart as PNG" aria-label="Download chart as PNG" style="display:none"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Download</span></button>
+        <button class="modal-close" id="closePanelModal" type="button" aria-label="Close maximized report">×</button>
+      </div>
     </div>
     <div class="panel-modal-body" id="panelModalBody"></div>
   </div>

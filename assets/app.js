@@ -439,20 +439,38 @@ function openPanelModal(targetId){
   const modal = document.getElementById('panelModal');
   const body = document.getElementById('panelModalBody');
   const title = document.getElementById('panelModalTitle');
+  const downloadBtn = document.getElementById('modalDownloadBtn');
   if(!source || !modal || !body || !title) return;
 
   const panel = source.closest('.t-panel');
   if(!panel) return;
 
+  if(charts.modalChart){ charts.modalChart.destroy(); delete charts.modalChart; }
+
   const clone = panel.cloneNode(true);
   clone.querySelectorAll('.panel-maximize-btn').forEach(btn=>btn.remove());
-  clone.querySelectorAll('canvas').forEach((canvas, index)=>{
-    const sourceCanvas = panel.querySelectorAll('canvas')[index];
-    copyCanvasBitmap(sourceCanvas, canvas);
-  });
-  // This is a static snapshot (cloned nodes + a bitmap copy of the chart canvas), so none
-  // of the original click-to-filter interactions carry over. Swap any "click to filter/jump"
-  // hint text for a neutral note and strip pointer affordances so it doesn't look clickable.
+
+  // Chart panels get a fresh, full-resolution re-render (with on-canvas value labels)
+  // instead of a bitmap copy of the small live canvas -- bitmap-copying is what made the
+  // maximized view look blurry, since it just stretched a low-res image up with CSS.
+  // Non-chart panels (lists) keep the original bitmap/DOM snapshot behavior unchanged.
+  const isChartPanel = Object.prototype.hasOwnProperty.call(MODAL_CHART_RENDERERS, targetId);
+  const clonedCanvas = clone.querySelector('canvas');
+
+  if(isChartPanel && clonedCanvas){
+    clonedCanvas.removeAttribute('width');
+    clonedCanvas.removeAttribute('height');
+    clonedCanvas.id = 'modalChart';
+  } else {
+    clone.querySelectorAll('canvas').forEach((canvas, index)=>{
+      const sourceCanvas = panel.querySelectorAll('canvas')[index];
+      copyCanvasBitmap(sourceCanvas, canvas);
+    });
+  }
+
+  // This is a static snapshot, so none of the original click-to-filter interactions carry
+  // over. Swap any "click to filter/jump" hint text for a neutral note and strip pointer
+  // affordances so it doesn't look clickable.
   clone.querySelectorAll('.hint').forEach(h=>{ h.textContent = 'Static snapshot — close this to interact with the panel.'; });
   clone.querySelectorAll('.leg-row, .rep-row, .hs-row, .aging-row, [data-loc], [data-name]').forEach(el=>{
     el.style.cursor = 'default';
@@ -463,6 +481,19 @@ function openPanelModal(targetId){
   title.textContent = headText.trim();
   body.innerHTML = '';
   body.appendChild(clone);
+
+  if(isChartPanel && clonedCanvas){
+    MODAL_CHART_RENDERERS[targetId]();
+    if(downloadBtn){
+      downloadBtn.style.display = 'inline-flex';
+      const slug = title.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'chart';
+      downloadBtn.dataset.filename = `hse-${slug}-${new Date().toISOString().slice(0,10)}.png`;
+    }
+  } else if(downloadBtn){
+    downloadBtn.style.display = 'none';
+    delete downloadBtn.dataset.filename;
+  }
+
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
 }
@@ -472,7 +503,24 @@ function closePanelModal(){
   if(!modal) return;
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
+  if(charts.modalChart){ charts.modalChart.destroy(); delete charts.modalChart; }
 }
+
+// Downloads the currently maximized chart as a PNG -- the value labels drawn by
+// valueLabelPlugin are part of the canvas pixels, so the exported image shows the actual
+// numbers, not just bare bars/lines/slices. Only wired up when a chart panel (not a list
+// panel) is maximized -- see openPanelModal().
+document.getElementById('modalDownloadBtn')?.addEventListener('click', function(){
+  const canvas = document.getElementById('modalChart');
+  if(!canvas) return;
+  const filename = this.dataset.filename || `hse-chart-${new Date().toISOString().slice(0,10)}.png`;
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png', 1.0);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+});
 
 function renderEvidenceLinksHtml(urls){
   if(!urls || !urls.length) return '—';
@@ -741,6 +789,7 @@ function renderAll(){
   renderCategoryDonut(rows);
   renderDesignation(rows);
   renderTopReporters(rows);
+  renderTopReportersPeriod(rows);
   renderSeverity(rows);
   renderHotspots(rows);
   renderCadence(rows);
@@ -1056,6 +1105,50 @@ function renderHotspots(rows){
   });
 }
 
+// --- Top Reporters Performance (Weekly/Monthly leaderboard) ---
+// Respects the same current filters as every other panel (getFilteredRows()), then further
+// narrows to the current calendar week or month using the same weekKey/monthKey helpers
+// already used by the Weekly Cadence and Monthly Comparison charts, so "current week/month"
+// means the same thing everywhere on the dashboard. Read-only: never touches ALL_ROWS.
+let reporterPeriod = 'weekly';
+function computeTopReportersByPeriod(rows, period){
+  const now = new Date();
+  const nowWeek = weekKey(now);
+  const nowMonth = monthKey(now);
+  const counts = {};
+  rows.forEach(r=>{
+    const d = parseDate(r.dateObs);
+    if(!d) return;
+    const inPeriod = period === 'monthly' ? monthKey(d) === nowMonth : weekKey(d) === nowWeek;
+    if(!inPeriod) return;
+    const name = r.observer || 'Unknown';
+    counts[name] = (counts[name] || 0) + 1;
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+}
+function renderTopReportersPeriod(rows){
+  const list = document.getElementById('topReportersPeriod');
+  if(!list) return;
+  const sorted = computeTopReportersByPeriod(rows, reporterPeriod);
+  if(!sorted.length){
+    list.innerHTML = `<div class="aging-empty">No reports yet ${reporterPeriod==='monthly' ? 'this month' : 'this week'}.</div>`;
+    return;
+  }
+  list.innerHTML = sorted.map((s,i)=>`
+    <div class="rep-row static">
+      <div class="rep-rank ${i===0?'gold':''}">${i+1}</div>
+      <div class="rep-name">${escapeHtml(s[0])}</div>
+      <div class="rep-count">${fmtNum(s[1])} reports</div>
+    </div>`).join('');
+}
+document.getElementById('reporterPeriodToggle')?.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.seg-btn');
+  if(!btn || btn.classList.contains('active')) return;
+  Array.from(document.querySelectorAll('#reporterPeriodToggle .seg-btn')).forEach(b=>b.classList.toggle('active', b===btn));
+  reporterPeriod = btn.getAttribute('data-period');
+  renderTopReportersPeriod(getFilteredRows());
+});
+
 function renderCadence(rows){
   const byWeek = {};
   rows.forEach(r=>{ const d=parseDate(r.dateObs); if(!d) return; const k=weekKey(d); byWeek[k]=(byWeek[k]||0)+1; });
@@ -1103,6 +1196,131 @@ function renderMonthly(rows){
     }
   });
 }
+
+/* ============================================================
+   MAXIMIZE-PANEL MODAL: read-only "snapshot" data helpers
+   ------------------------------------------------------------
+   These mirror the counting logic already used by the live charts above,
+   but only READ rows/trendCache -- they never touch FILTERS, the DOM
+   outside the modal, or any existing chart/list. They exist purely so the
+   maximize-panel modal can render a fresh, full-resolution copy of a chart
+   (with on-canvas value labels) instead of bitmap-copying the small live
+   canvas, which is what caused the blurry "maximized" view.
+   ============================================================ */
+function computeCadenceCountsSnapshot(rows){
+  const byWeek = {};
+  rows.forEach(r=>{ const d=parseDate(r.dateObs); if(!d) return; const k=weekKey(d); byWeek[k]=(byWeek[k]||0)+1; });
+  const weeks = Object.keys(byWeek).sort();
+  return { labels: weeks.map(w=>w.split('-W')[1]?('W'+w.split('-W')[1]):w), data: weeks.map(w=>byWeek[w]) };
+}
+function computeDesignationCountsSnapshot(rows){
+  const counts = {};
+  rows.forEach(r=>{ const d=r.designation||'N/A'; counts[d]=(counts[d]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  return { labels: sorted.map(s=>s[0]), data: sorted.map(s=>s[1]) };
+}
+function computeSeverityCountsSnapshot(rows){
+  const counts = {1:0,2:0,3:0,4:0,5:0,NA:0};
+  rows.forEach(r=>{ if(r.severity===null){counts.NA++;} else {counts[r.severity]=(counts[r.severity]||0)+1;} });
+  return {
+    labels: ['Sev 1','Sev 2','Sev 3','Sev 4','Sev 5','N/A'],
+    data: [counts[1],counts[2],counts[3],counts[4],counts[5],counts.NA],
+    colors: ['#10B981','#F59E0B','#EF4444','#DC2626','#991B1B','#CBD5E1']
+  };
+}
+function computeCategoryCountsSnapshot(rows){
+  const counts = {};
+  rows.forEach(r=> (r.category||'').split(',').forEach(c=>{
+    c=c.trim(); if(!c || !isKnownCategory(c)) return;
+    counts[c]=(counts[c]||0)+1;
+  }));
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const labels = sorted.map(s=>s[0]);
+  const data = sorted.map(s=>s[1]);
+  return { labels, data, colors: labels.map((l,i)=> PALETTE[i % PALETTE.length]) };
+}
+function computeMonthlyDatasetsSnapshot(rows){
+  const buckets = {};
+  rows.forEach(r=>{
+    const d = parseDate(r.dateObs); if(!d) return;
+    const k = monthKey(d);
+    if(!buckets[k]) buckets[k] = {positive:0, unsafeact:0, unsafecondition:0, unsafeother:0, nearmiss:0};
+    buckets[k][detailedNature(r.type)]++;
+  });
+  const months = Object.keys(buckets).sort();
+  return {
+    labels: months.map(monthLabel),
+    datasets: [
+      { label:'Positive', data: months.map(m=>buckets[m].positive), backgroundColor:'#10B981', hoverBackgroundColor:'#0DA271', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+      { label:'Unsafe Act', data: months.map(m=>buckets[m].unsafeact), backgroundColor:'#EF4444', hoverBackgroundColor:'#E23636', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+      { label:'Unsafe Condition', data: months.map(m=>buckets[m].unsafecondition), backgroundColor:'#7C3AED', hoverBackgroundColor:'#6D28D9', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+      { label:'Near miss', data: months.map(m=>buckets[m].nearmiss), backgroundColor:'#F59E0B', hoverBackgroundColor:'#E08E0B', borderRadius:0, barPercentage:0.55, categoryPercentage:0.7 },
+      { label:'Other', data: months.map(m=>buckets[m].unsafeother), backgroundColor:'#94A3B8', hoverBackgroundColor:'#84919F', borderRadius:{topLeft:6,topRight:6,bottomLeft:0,bottomRight:0}, barPercentage:0.55, categoryPercentage:0.7 },
+    ]
+  };
+}
+// Mirrors applyTrendWindow()'s slicing logic without touching the slider UI, FILTERS, or
+// trendYMax -- purely a read of the same trendCache + current slider position.
+function getTrendWindowSnapshot(){
+  const startInput = document.getElementById('trendSliderStart');
+  const endInput = document.getElementById('trendSliderEnd');
+  const { days, labels, titles, counts } = trendCache;
+  let startIdx = 0, endIdx = Math.max(0, days.length - 1);
+  if(startInput && endInput && days.length > 1){
+    startIdx = Math.min(parseInt(startInput.value), parseInt(endInput.value));
+    endIdx = Math.max(parseInt(startInput.value), parseInt(endInput.value));
+  }
+  return {
+    labels: labels.slice(startIdx, endIdx + 1),
+    counts: counts.slice(startIdx, endIdx + 1),
+    titles: titles.slice(startIdx, endIdx + 1)
+  };
+}
+
+// Renders a full-resolution, value-labeled copy of a chart into the maximize-panel modal's
+// #modalChart canvas. Each entry is a zero-arg function keyed by the live chart's canvas id.
+const MODAL_CHART_RENDERERS = {
+  cadenceChart: ()=>{
+    const { labels, data } = computeCadenceCountsSnapshot(getFilteredRows());
+    drawBar('modalChart', labels, data, null, '#2563EB', { valueLabels:true });
+  },
+  desigChart: ()=>{
+    const { labels, data } = computeDesignationCountsSnapshot(getFilteredRows());
+    drawBar('modalChart', labels, data, null, undefined, { valueLabels:true });
+  },
+  sevChart: ()=>{
+    const { labels, data, colors } = computeSeverityCountsSnapshot(getFilteredRows());
+    drawBar('modalChart', labels, data, null, colors, { valueLabels:true });
+  },
+  catDonut: ()=>{
+    const { labels, data, colors } = computeCategoryCountsSnapshot(getFilteredRows());
+    drawDoughnut('modalChart', labels, data, colors, null, { valueLabels:true });
+  },
+  trendChart: ()=>{
+    const { labels, counts, titles } = getTrendWindowSnapshot();
+    drawLineChart('modalChart', labels, counts, titles, { valueLabels: counts.length <= 20 });
+  },
+  monthlyChart: ()=>{
+    const { labels, datasets } = computeMonthlyDatasetsSnapshot(getFilteredRows());
+    if(charts.modalChart) charts.modalChart.destroy();
+    charts.modalChart = new Chart(document.getElementById('modalChart'), {
+      type:'bar',
+      data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        animation:{duration:600, easing:'easeOutQuart'},
+        plugins:{
+          legend:{ position:'bottom', labels:{ font:{family:'Inter',size:11}, color:'#475569', boxWidth:10, padding:14, usePointStyle:true, pointStyle:'circle' } },
+          tooltip:{ backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1, padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5} }
+        },
+        scales:{
+          x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B'} },
+          y:{ stacked:true, grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#94A3B8'} }
+        }
+      }
+    });
+  }
+};
 
 function renderRateAndAging(rows){
   const withAnswer = rows.filter(r=>r.correctedOnSpot);
@@ -1236,7 +1454,57 @@ function renderTable(rows){
 /* ============================================================
    CHART DRAWING
    ============================================================ */
-function drawLineChart(id, labels, data, fullLabels){
+// Optional plugin used only for maximized-panel chart snapshots (never the live dashboard
+// charts) to draw each bar/point/slice's numeric value directly onto the canvas. Because
+// it's baked into the same canvas that gets exported as a PNG, the downloaded image shows
+// the actual numbers, not just bare shapes. No-ops entirely unless a chart explicitly opts
+// in via options.plugins.valueLabelPlugin.enabled, so it never affects any existing chart.
+const valueLabelPlugin = {
+  id: 'valueLabelPlugin',
+  afterDatasetsDraw(chart, args, opts){
+    if(!opts || !opts.enabled) return;
+    const { ctx } = chart;
+    ctx.save();
+    chart.data.datasets.forEach((dataset, dsIndex)=>{
+      const meta = chart.getDatasetMeta(dsIndex);
+      if(!meta || meta.hidden) return;
+      meta.data.forEach((el, i)=>{
+        const value = dataset.data[i];
+        if(value===undefined || value===null || value===0) return;
+        const text = fmtNum(value);
+        if(chart.config.type === 'bar' && chart.options.indexAxis === 'y'){
+          const { x, y } = el.getProps(['x','y'], true);
+          ctx.font = '700 11px Inter, sans-serif';
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = opts.color || '#0F172A';
+          ctx.fillText(text, x + 8, y);
+        } else if(chart.config.type === 'bar'){
+          const { x, y } = el.getProps(['x','y'], true);
+          ctx.font = '700 11px Inter, sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.fillStyle = opts.color || '#0F172A';
+          ctx.fillText(text, x, y - 6);
+        } else if(chart.config.type === 'line'){
+          const { x, y } = el.getProps(['x','y'], true);
+          ctx.font = '700 10.5px Inter, sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.fillStyle = opts.color || '#1D4ED8';
+          ctx.fillText(text, x, y - 10);
+        } else if(chart.config.type === 'doughnut'){
+          const pos = typeof el.tooltipPosition === 'function' ? el.tooltipPosition() : el.getProps(['x','y'], true);
+          ctx.font = '700 11px Inter, sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#fff';
+          ctx.fillText(text, pos.x, pos.y);
+        }
+      });
+    });
+    ctx.restore();
+  }
+};
+if(typeof Chart !== 'undefined'){ Chart.register(valueLabelPlugin); }
+
+function drawLineChart(id, labels, data, fullLabels, opts){
   const ctx = document.getElementById(id);
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {
@@ -1246,6 +1514,7 @@ function drawLineChart(id, labels, data, fullLabels){
       responsive:true, maintainAspectRatio:false,
       interaction:{mode:'nearest', intersect:false},
       animation:{duration:600, easing:'easeOutQuart'},
+      layout: opts && opts.valueLabels ? { padding:{top:24} } : undefined,
       plugins:{
         legend:{display:false},
         tooltip:{
@@ -1259,7 +1528,8 @@ function drawLineChart(id, labels, data, fullLabels){
             },
             label:(item)=>`Reports: ${fmtNum(item.parsed.y)}`
           }
-        }
+        },
+        valueLabelPlugin:{ enabled: !!(opts && opts.valueLabels) }
       },
       scales:{
         x:{
@@ -1290,7 +1560,7 @@ function drawLineChart(id, labels, data, fullLabels){
     }
   });
 }
-function drawDoughnut(id, labels, data, colors, onClick){
+function drawDoughnut(id, labels, data, colors, onClick, opts){
   const ctx = document.getElementById(id);
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {
@@ -1304,14 +1574,15 @@ function drawDoughnut(id, labels, data, colors, onClick){
         tooltip:{
           backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
           padding:10, cornerRadius:10, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
-        }
+        },
+        valueLabelPlugin:{ enabled: !!(opts && opts.valueLabels) }
       },
-      onClick:(evt,els)=>{ if(els.length) onClick(labels[els[0].index]); },
-      onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length?'pointer':'default'; }
+      onClick:(evt,els)=>{ if(els.length && typeof onClick==='function') onClick(labels[els[0].index]); },
+      onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length && typeof onClick==='function' ?'pointer':'default'; }
     }
   });
 }
-function drawBar(id, labels, data, onClick, colors){
+function drawBar(id, labels, data, onClick, colors, opts){
   const ctx = document.getElementById(id);
   if(charts[id]) charts[id].destroy();
   const bg = Array.isArray(colors) ? colors : (colors || '#2563EB');
@@ -1322,12 +1593,14 @@ function drawBar(id, labels, data, onClick, colors){
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
       animation:{duration:500, easing:'easeOutQuart'},
+      layout: opts && opts.valueLabels ? { padding:{right:38} } : undefined,
       plugins:{
         legend:{display:false},
         tooltip:{
           backgroundColor:'#fff', titleColor:'#0F172A', bodyColor:'#475569', borderColor:'#E7EAF1', borderWidth:1,
           padding:10, cornerRadius:10, displayColors:false, titleFont:{family:'Inter',weight:'700',size:12}, bodyFont:{family:'Inter',size:11.5}
-        }
+        },
+        valueLabelPlugin:{ enabled: !!(opts && opts.valueLabels) }
       },
       scales:{
         x:{ grid:{color:'rgba(15,23,42,.05)'}, ticks:{font:{family:'Inter',size:10.5}, color:'#64748B', precision:0, callback:(value)=>fmtNum(Math.round(value))} , beginAtZero:true },
